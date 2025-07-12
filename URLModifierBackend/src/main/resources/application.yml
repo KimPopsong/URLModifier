@@ -1,0 +1,21 @@
+spring:
+  application:
+    name: URLModifierBackend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/URLModifier
+    username: url_user
+    password: url_user
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+
+server:
+  base-url: http://localhost:8080/
