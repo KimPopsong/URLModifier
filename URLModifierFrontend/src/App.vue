@@ -1,47 +1,77 @@
-<script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+  <div id="app">
+    <h1>URL Shortener</h1>
+    <form @submit.prevent="shortenUrl">
+      <input type="text" v-model="originalUrl" placeholder="Enter URL to shorten">
+      <button type="submit">Shorten</button>
+    </form>
+    <div v-if="shortenedUrl" class="result">
+      <h2>Shortened URL:</h2>
+      <a :href="shortenedUrl" target="_blank">{{ shortenedUrl }}</a>
+      <img :src="qrCode" alt="QR Code">
     </div>
-  </header>
-
-  <main>
-    <TheWelcome />
-  </main>
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
+<script>
+import axios from 'axios';
+
+export default {
+  data() {
+    return {
+      originalUrl: '',
+      shortenedUrl: '',
+      qrCode: ''
+    };
+  },
+  methods: {
+    async shortenUrl() {
+      try {
+        const response = await axios.post('http://localhost:8080/short-urls', {
+          url: this.originalUrl
+        });
+        this.shortenedUrl = response.data.shortenedUrl;
+        this.qrCode = response.data.qrCode;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+  }
+};
+</script>
+
+<style>
+#app {
+  font-family: Avenir, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-align: center;
+  color: #2c3e50;
+  margin-top: 60px;
 }
 
-.logo {
+form {
+  margin-bottom: 20px;
+}
+
+input {
+  padding: 10px;
+  width: 300px;
+  margin-right: 10px;
+}
+
+button {
+  padding: 10px;
+}
+
+.result {
+  margin-top: 20px;
+}
+
+img {
+  margin-top: 20px;
   display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
+  margin-left: auto;
+  margin-right: auto;
 }
 </style>
