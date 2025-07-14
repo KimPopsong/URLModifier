@@ -66,6 +66,18 @@ public class URLServiceImpl implements URLService {
     @Override
     public Optional<URL> getOriginURL(String shortUrl)
     {
-        return urlRepository.findByShortenedURL(shortUrl);
+        try
+        {
+            long id = Base62.decode(shortUrl);
+
+            return urlRepository.findById(id);
+        }
+
+        catch (Exception e)
+        {
+            e.printStackTrace();
+
+            return Optional.empty();
+        }
     }
 }
