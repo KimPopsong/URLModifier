@@ -13,12 +13,12 @@ public class URL {
     @Id
     private Long id;
 
-    @Column(name = "origin_url", nullable = false)
+    @Column(name = "origin_url", nullable = false, columnDefinition = "TEXT")
     private String originURL;
 
-    @Column(name = "shortened_url", nullable = false)
+    @Column(name = "shortened_url", nullable = false, columnDefinition = "TEXT")
     private String shortenedURL;
 
-    @Column(name = "qr_code", nullable = false)
+    @Column(name = "qr_code", nullable = false, columnDefinition = "TEXT")
     private String qrCode;
 }

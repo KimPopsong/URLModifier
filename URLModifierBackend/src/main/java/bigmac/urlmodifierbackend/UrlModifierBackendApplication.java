@@ -72,4 +72,6 @@ public class UrlModifierBackendApplication {
  * * API 제공 (Developer API):
  * * 기능: 다른 개발자들이 자신의 애플리케이션에서 프로그래밍 방식으로 URL을 단축하고 관리할 수 있도록 REST API를 제공합니다. 사용자별로 API 키를 발급하여 인증합니다.
  * * 장점: 서비스의 활용 범위를 크게 넓혀 다른 서비스와의 통합을 가능하게 합니다.
+ *
+ * 타 단축 사이트 링크는 불가
  */
