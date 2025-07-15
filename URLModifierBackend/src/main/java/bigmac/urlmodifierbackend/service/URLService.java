@@ -5,7 +5,7 @@ import bigmac.urlmodifierbackend.model.URL;
 import java.util.Optional;
 
 public interface URLService {
-    URL makeURLShort(String url);
+    URL makeURLShort(String url, Long userId);
 
     Optional<URL> getOriginURL(String shortUrl);
 }

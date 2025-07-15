@@ -35,7 +35,7 @@ public class URLController {
     @PostMapping("/short-urls")
     public ResponseEntity<URLResponse> makeURLShort(@RequestBody URLRequest urlRequest)
     {
-        URL url = urlService.makeURLShort(urlRequest.getUrl());
+        URL url = urlService.makeURLShort(urlRequest.getUrl(), null); // JWT 구현 전까지 userId는 null로 전달
 
         return ResponseEntity.ok(new URLResponse(baseUrl + url.getShortenedURL(), url.getQrCode()));  // 성공 응답(200 OK)과 함께 생성된 단축 URL과 QR 코드를 반환
     }

@@ -13,6 +13,9 @@ public class URL {
     @Id
     private Long id;
 
+    @Column(name = "user_id")
+    private Long userId;
+
     @Column(name = "origin_url", nullable = false, columnDefinition = "TEXT")
     private String originURL;
 
@@ -21,4 +24,12 @@ public class URL {
 
     @Column(name = "qr_code", nullable = false, columnDefinition = "TEXT")
     private String qrCode;
+
+    public URL(Long id, String originURL, String shortenedURL, String qrCode)
+    {
+        this.id = id;
+        this.originURL = originURL;
+        this.shortenedURL = shortenedURL;
+        this.qrCode = qrCode;
+    }
 }

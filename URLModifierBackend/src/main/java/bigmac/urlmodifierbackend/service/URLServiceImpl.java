@@ -27,7 +27,7 @@ public class URLServiceImpl implements URLService {
      * @return 단축된 URL
      */
     @Override
-    public URL makeURLShort(String originURL)
+    public URL makeURLShort(String originURL, Long userId)
     {
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
@@ -55,7 +55,7 @@ public class URLServiceImpl implements URLService {
                 e.printStackTrace();
             }
 
-            URL newUrl = new URL(id, originURL, shortenedURL, qrCodeBase64);
+            URL newUrl = new URL(id, userId, originURL, shortenedURL, qrCodeBase64);
 
             urlRepository.save(newUrl);
 
