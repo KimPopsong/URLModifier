@@ -1,11 +1,12 @@
 package bigmac.urlmodifierbackend.service;
 
 import bigmac.urlmodifierbackend.model.URL;
+import bigmac.urlmodifierbackend.model.User;
 
 import java.util.Optional;
 
 public interface URLService {
-    URL makeURLShort(String url, Long userId);
+    URL makeURLShort(String url, User user);
 
-    Optional<URL> getOriginURL(String shortUrl);
+    Optional<URL> getOriginURLByShortURL(String shortUrl);
 }

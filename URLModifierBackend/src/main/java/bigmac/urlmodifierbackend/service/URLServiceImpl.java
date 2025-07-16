@@ -3,6 +3,7 @@ package bigmac.urlmodifierbackend.service;
 import bigmac.urlmodifierbackend.model.URL;
 import bigmac.urlmodifierbackend.model.User;
 import bigmac.urlmodifierbackend.repository.URLRepository;
+import bigmac.urlmodifierbackend.repository.UserRepository;
 import bigmac.urlmodifierbackend.util.Base62;
 import bigmac.urlmodifierbackend.util.QRCodeUtil;
 import bigmac.urlmodifierbackend.util.SnowflakeIdGenerator;
@@ -19,6 +20,7 @@ import java.util.Optional;
 @Transactional(readOnly = true)
 public class URLServiceImpl implements URLService {
     private final URLRepository urlRepository;
+    private final UserRepository userRepository;
     private final SnowflakeIdGenerator idGenerator;
     @Value("${server.base-url}")
     private String baseUrl;
@@ -31,7 +33,7 @@ public class URLServiceImpl implements URLService {
      */
     @Transactional
     @Override
-    public URL makeURLShort(String originURL, Long userId)  // TODO user 저장
+    public URL makeURLShort(String originURL, User user)
     {
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
@@ -42,7 +44,6 @@ public class URLServiceImpl implements URLService {
 
         else  // 단축 URL 생성
         {
-            User user = null;  // 사용자 찾아야함
             long id = idGenerator.nextId();
 
             String shortenedURL = Base62.encode(id);
@@ -61,7 +62,7 @@ public class URLServiceImpl implements URLService {
             }
 
             URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
-
+            // TODO user가 없을 수 있음. JWT로 User 찾는 과정 추가 필요
             urlRepository.save(newUrl);
 
             return newUrl;
@@ -69,20 +70,8 @@ public class URLServiceImpl implements URLService {
     }
 
     @Override
-    public Optional<URL> getOriginURL(String shortUrl)
+    public Optional<URL> getOriginURLByShortURL(String shortUrl)
     {
-        try
-        {  // TODO find 로직 수정 -> Base62가 아닌 다른 것으로
-            long id = Base62.decode(shortUrl);
-
-            return urlRepository.findById(id);
-        }
-
-        catch (Exception e)
-        {
-            e.printStackTrace();
-
-            return Optional.empty();
-        }
+        return urlRepository.findByShortenedURL(shortUrl);
     }
 }
