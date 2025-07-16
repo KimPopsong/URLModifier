@@ -27,7 +27,7 @@ public class URLServiceImpl implements URLService {
      * @return 단축된 URL
      */
     @Override
-    public URL makeURLShort(String originURL, Long userId)
+    public URL makeURLShort(String originURL, Long userId)  // TODO user 저장
     {
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
@@ -67,7 +67,7 @@ public class URLServiceImpl implements URLService {
     public Optional<URL> getOriginURL(String shortUrl)
     {
         try
-        {
+        {  // TODO find 로직 수정 -> Base62가 아닌 다른 것으로
             long id = Base62.decode(shortUrl);
 
             return urlRepository.findById(id);
