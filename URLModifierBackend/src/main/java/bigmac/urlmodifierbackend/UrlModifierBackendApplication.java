@@ -74,4 +74,6 @@ public class UrlModifierBackendApplication {
  * * 장점: 서비스의 활용 범위를 크게 넓혀 다른 서비스와의 통합을 가능하게 합니다.
  *
  * 타 단축 사이트 링크는 불가
+ * 
+ * 로봇인가요? -> 로그인 한 유저는 체크 안하기
  */
