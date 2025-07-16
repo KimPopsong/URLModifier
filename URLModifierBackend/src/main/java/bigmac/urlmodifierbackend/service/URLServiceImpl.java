@@ -9,12 +9,14 @@ import bigmac.urlmodifierbackend.util.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Base64;
 import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
+@Transactional(readOnly = true)
 public class URLServiceImpl implements URLService {
     private final URLRepository urlRepository;
     private final SnowflakeIdGenerator idGenerator;
@@ -27,6 +29,7 @@ public class URLServiceImpl implements URLService {
      * @param originURL 기본 URL
      * @return 단축된 URL
      */
+    @Transactional
     @Override
     public URL makeURLShort(String originURL, Long userId)  // TODO user 저장
     {

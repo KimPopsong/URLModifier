@@ -1,17 +1,22 @@
 package bigmac.urlmodifierbackend.service;
 
+import bigmac.urlmodifierbackend.dto.UserLoginRequest;
 import bigmac.urlmodifierbackend.dto.UserRegisterRequest;
-import bigmac.urlmodifierbackend.exception.UserAlreadyExistsException;
+import bigmac.urlmodifierbackend.exception.EmailNotExistsException;
+import bigmac.urlmodifierbackend.exception.LoginFailException;
+import bigmac.urlmodifierbackend.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.model.User;
 import bigmac.urlmodifierbackend.repository.UserRepository;
 import bigmac.urlmodifierbackend.util.SnowflakeIdGenerator;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
 @Service
+@Transactional(readOnly = true)
 @RequiredArgsConstructor
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
@@ -30,12 +35,13 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByEmail(email).isPresent();
     }
 
+    @Transactional
     @Override
-    public User registerUser(UserRegisterRequest userRegisterRequest)
+    public void registerUser(UserRegisterRequest userRegisterRequest)
     {
         if (isEmailExist(userRegisterRequest.getEmail()))  // 이미 있는 회원이라면
         {
-            throw new UserAlreadyExistsException("이미 존재하는 이메일입니다.");
+            throw new EmailAlreadyExistsException("이미 존재하는 이메일입니다.");
         }
 
         User user = new User();
@@ -45,7 +51,26 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(userRegisterRequest.getPassword()));
 
         userRepository.save(user);
+    }
 
-        return user;
+    @Override
+    public User loginUser(UserLoginRequest userLoginRequest)
+    {
+        Optional<User> result = userRepository.findByEmail(userLoginRequest.getEmail());
+
+        if (result.isEmpty())
+        {
+            throw new EmailNotExistsException("존재하지 않는 이메일입니다.");
+        }
+
+        else if (passwordEncoder.matches(userLoginRequest.getPassword(), result.get().getPassword()))
+        {
+            return result.get();
+        }
+
+        else
+        {
+            throw new LoginFailException("비밀번호가 일치하지 않습니다.");
+        }
     }
 }
