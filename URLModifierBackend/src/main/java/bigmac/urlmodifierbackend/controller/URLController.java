@@ -20,7 +20,6 @@ import java.util.Optional;
 @RestController
 @RequiredArgsConstructor
 public class URLController {
-
     private final URLService urlService;
 
     @Value("${server.base-url}")
