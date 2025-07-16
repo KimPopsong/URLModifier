@@ -35,4 +35,13 @@ public class URL {
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    public URL(long id, User user, String originURL, String shortenedURL, String qrCodeBase64)
+    {
+        this.id = id;
+        this.user = user;
+        this.originURL = originURL;
+        this.shortenedURL = shortenedURL;
+        this.qrCode = qrCodeBase64;
+    }
 }

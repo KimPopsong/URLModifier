@@ -1,6 +1,7 @@
 package bigmac.urlmodifierbackend.service;
 
 import bigmac.urlmodifierbackend.model.URL;
+import bigmac.urlmodifierbackend.model.User;
 import bigmac.urlmodifierbackend.repository.URLRepository;
 import bigmac.urlmodifierbackend.util.Base62;
 import bigmac.urlmodifierbackend.util.QRCodeUtil;
@@ -38,6 +39,7 @@ public class URLServiceImpl implements URLService {
 
         else  // 단축 URL 생성
         {
+            User user = null;  // 사용자 찾아야함
             long id = idGenerator.nextId();
 
             String shortenedURL = Base62.encode(id);
@@ -55,7 +57,7 @@ public class URLServiceImpl implements URLService {
                 e.printStackTrace();
             }
 
-            URL newUrl = new URL(id, userId, originURL, shortenedURL, qrCodeBase64);
+            URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
 
             urlRepository.save(newUrl);
 
