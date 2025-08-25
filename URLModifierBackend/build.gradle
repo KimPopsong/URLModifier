@@ -26,6 +26,7 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'  // QRCode
     implementation 'com.google.zxing:javase:3.5.3'  // QRCode
     implementation 'io.jsonwebtoken:jjwt-api:0.12.6'  // JWT
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'  // Redis
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
     runtimeOnly 'org.postgresql:postgresql'

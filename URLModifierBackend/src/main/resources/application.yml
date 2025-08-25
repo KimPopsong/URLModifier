@@ -17,6 +17,12 @@ spring:
         format_sql: true
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
+  data:
+    redis: # Redis
+      host: localhost
+      port: 6379
+      password: testChangeLater
+
 jwt:
   secret: testChangeLater
 
