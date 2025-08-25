@@ -83,6 +83,9 @@ public class URLServiceImpl implements URLService {
 
         if (shortenedURL.isPresent()) {  // 이미 생성된 url이 있다면
             throw new URLException("이미 존재하는 단축 URL입니다.");
+        } else if (customURLRequest.getCustomURL().length() >= 31
+            || customURLRequest.getCustomURL().length() <= 5) {  // 글자 길이 제한
+            throw new URLException("단축 URL의 길이가 올바르지 않습니다.");
         } else {  // 생성된 customURL이 없다면
             String qrCodeBase64 = "";
 

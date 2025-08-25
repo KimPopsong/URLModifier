@@ -28,10 +28,10 @@ public class URL {
     @JoinColumn(name = "user", nullable = true)
     private User user;
 
-    @Column(name = "origin_url", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "origin_url", nullable = false, unique = true, columnDefinition = "TEXT")
     private String originURL;
 
-    @Column(name = "shortened_url", nullable = false, columnDefinition = "TEXT")
+    @Column(name = "shortened_url", nullable = false, unique = true, length = 30)
     private String shortenedURL;
 
 //    @Column(name = "custom_url", nullable = true, columnDefinition = "TEXT")
