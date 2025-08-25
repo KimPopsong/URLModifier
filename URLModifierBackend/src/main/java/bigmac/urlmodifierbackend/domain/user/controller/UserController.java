@@ -23,6 +23,12 @@ public class UserController {
     private final UserService userService;
     private final JwtUtil jwtUtil;
 
+    /**
+     * 회원가입
+     *
+     * @param userRegisterRequest 이메일과 비밀번호
+     * @return HttpStatus.OK
+     */
     @PostMapping("/register")
     public ResponseEntity<Void> registerUser(@RequestBody UserRegisterRequest userRegisterRequest) {
         userService.registerUser(userRegisterRequest);
@@ -30,6 +36,12 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
 
+    /**
+     * 로그인
+     *
+     * @param userLoginRequest 이메일과 비밀번호
+     * @return accessToken, refreshToken
+     */
     @PostMapping("/login")
     public ResponseEntity<UserLoginResponse> loginUser(
         @RequestBody UserLoginRequest userLoginRequest) {
@@ -41,6 +53,12 @@ public class UserController {
         return ResponseEntity.ok(new UserLoginResponse(accessToken, refreshToken));
     }
 
+    /**
+     * 로그아웃
+     *
+     * @param authorizationHeader JWT
+     * @return HttpStatus.OK
+     */
     @PostMapping("/logout")
     public ResponseEntity<Void> logoutUser(
         @RequestHeader("Authorization") String authorizationHeader) {

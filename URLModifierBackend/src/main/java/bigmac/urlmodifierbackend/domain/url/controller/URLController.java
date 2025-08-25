@@ -1,11 +1,13 @@
 package bigmac.urlmodifierbackend.domain.url.controller;
 
+import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLInfoResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLResponse;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.service.URLService;
 import bigmac.urlmodifierbackend.domain.user.model.User;
+import java.net.URI;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,8 +44,26 @@ public class URLController {
         @RequestBody URLRequest urlRequest) {
         URL url = urlService.makeURLShort(urlRequest.getUrl(), user);
 
-        return ResponseEntity.ok(new URLResponse(baseUrl + url.getShortenedURL(),
-            url.getQrCode()));  // 성공 응답(200 OK)과 함께 생성된 단축 URL과 QR 코드를 반환
+        return ResponseEntity.created(URI.create(baseUrl + url.getShortenedURL())).body(
+            new URLResponse(baseUrl + url.getShortenedURL(),
+                url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
+    }
+
+    /**
+     * 사용자 커스텀 URL 생성
+     *
+     * @param user             사용자 정보
+     * @param customURLRequest 생성하려는 원본 URL과 커스텀 URL
+     * @return 생성된 단축 URL과 QR 코드를 담은 응답 DTO
+     */
+    @PostMapping("/short-urls/custom")
+    public ResponseEntity<URLResponse> makeCustomURL(@AuthenticationPrincipal User user,
+        @RequestBody CustomURLRequest customURLRequest) {
+        URL url = urlService.makeCustomURL(user, customURLRequest);
+
+        return ResponseEntity.created(URI.create(baseUrl + url.getShortenedURL())).body(
+            new URLResponse(baseUrl + url.getShortenedURL(),
+                url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
     }
 
     /**

@@ -35,6 +35,11 @@ public class UserServiceImpl implements UserService {
         return userRepository.findByEmail(email).isPresent();
     }
 
+    /**
+     * 회원가입
+     *
+     * @param userRegisterRequest 이메일과 비밀번호
+     */
     @Transactional
     @Override
     public void registerUser(UserRegisterRequest userRegisterRequest) {
@@ -52,6 +57,12 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
+    /**
+     * 로그인
+     *
+     * @param userLoginRequest 이메일과 비밀번호
+     * @return User 객체
+     */
     @Override
     public User loginUser(UserLoginRequest userLoginRequest) {
         Optional<User> result = userRepository.findByEmail(userLoginRequest.getEmail());
@@ -66,6 +77,11 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    /**
+     * 로그아웃
+     *
+     * @param authorizationHeader JWT
+     */
     @Override
     public void logoutUser(String authorizationHeader) {
         String accessToken = authorizationHeader.substring(7);

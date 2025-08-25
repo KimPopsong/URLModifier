@@ -1,9 +1,10 @@
 package bigmac.urlmodifierbackend.domain.url.service;
 
+import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
+import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
 import bigmac.urlmodifierbackend.domain.user.model.User;
-import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import bigmac.urlmodifierbackend.global.util.Base62;
 import bigmac.urlmodifierbackend.global.util.QRCodeUtil;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
@@ -20,7 +21,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class URLServiceImpl implements URLService {
 
     private final URLRepository urlRepository;
-    private final UserRepository userRepository;
     private final SnowflakeIdGenerator idGenerator;
     @Value("${server.base-url}")
     private String baseUrl;
@@ -43,8 +43,12 @@ public class URLServiceImpl implements URLService {
         } else  // 단축 URL 생성
         {
             long id = idGenerator.nextId();
+            String shortenedURL;
 
-            String shortenedURL = Base62.encode(id);
+            // 겹치지 않는 URL 생성
+            do {
+                shortenedURL = Base62.encode(id);
+            } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
 
             String qrCodeBase64 = "";
 
@@ -54,16 +58,59 @@ public class URLServiceImpl implements URLService {
                 qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
             } catch (Exception e) {
                 e.printStackTrace();
+                throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
             }
 
             URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
-            
+
             urlRepository.save(newUrl);
 
             return newUrl;
         }
     }
 
+    /**
+     * 커스텀 URL을 생성
+     *
+     * @param user             사용자 정보
+     * @param customURLRequest 생성하려는 원본 URL과 커스텀 URL
+     */
+    @Transactional
+    @Override
+    public URL makeCustomURL(User user, CustomURLRequest customURLRequest) {
+        Optional<URL> shortenedURL = urlRepository.findByShortenedURL(
+            customURLRequest.getCustomURL());
+
+        if (shortenedURL.isPresent()) {  // 이미 생성된 url이 있다면
+            throw new URLException("이미 존재하는 단축 URL입니다.");
+        } else {  // 생성된 customURL이 없다면
+            String qrCodeBase64 = "";
+
+            try  // QR코드 이미지 생성
+            {
+                byte[] qrImage = QRCodeUtil.generateQRCodeImage(customURLRequest.getOriginURL(),
+                    200, 200);
+                qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
+            } catch (Exception e) {
+                e.printStackTrace();
+                throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
+            }
+
+            URL newUrl = new URL(idGenerator.nextId(), user, customURLRequest.getOriginURL(),
+                customURLRequest.getCustomURL(), qrCodeBase64);
+
+            URL url = urlRepository.save(newUrl);
+
+            return url;
+        }
+    }
+
+    /**
+     * 원본 URL 확인
+     *
+     * @param shortUrl 단축 URL
+     * @return Optional<URL>
+     */
     @Override
     public Optional<URL> getOriginURLByShortURL(String shortUrl) {
         return urlRepository.findByShortenedURL(shortUrl);

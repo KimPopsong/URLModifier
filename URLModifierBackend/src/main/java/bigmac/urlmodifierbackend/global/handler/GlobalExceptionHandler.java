@@ -1,5 +1,6 @@
 package bigmac.urlmodifierbackend.global.handler;
 
+import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
 import bigmac.urlmodifierbackend.global.dto.ErrorResponse;
@@ -22,6 +23,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(LoginFailException.class)
     public ResponseEntity<ErrorResponse> handleLoginFailException(LoginFailException e) {
         ErrorResponse response = new ErrorResponse("LOGIN_FAIL", e.getMessage());
+
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(URLException.class)
+    public ResponseEntity<ErrorResponse> handleURLException(URLException e) {
+        ErrorResponse response = new ErrorResponse("URL_Make_Fail", e.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
