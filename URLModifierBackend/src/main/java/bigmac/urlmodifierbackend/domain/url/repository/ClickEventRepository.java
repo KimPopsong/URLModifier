@@ -17,5 +17,4 @@ public interface ClickEventRepository extends JpaRepository<ClickEvent, Long> {
         + "ORDER BY FUNCTION('DATE_TRUNC', 'hour', c.clickedAt)")
     List<Object[]> countHourlyClicks(@Param("url") URL url, @Param("start") LocalDateTime start,
         @Param("end") LocalDateTime end);
-
 }

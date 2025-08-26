@@ -36,6 +36,8 @@ public class URLServiceImpl implements URLService {
     private String FE_BASE_URL;
 
     /**
+     * 원본 URL을 받아 단축 URL과 QR 코드를 생성
+     * <p>
      * 주어진 URL이 DB에 있는지 확인 후 있다면 DB에 있는 값 반환. 없다면 단축 후 DB 저장 및 반환
      *
      * @param originURL 기본 URL
@@ -45,8 +47,6 @@ public class URLServiceImpl implements URLService {
     @Transactional
     @Override
     public URL makeURLShort(User user, String originURL) {
-        this.checkUser(user);
-
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
         if (findByOriginURL.isPresent())  // 이미 같은 URL이 DB에 있다면 계산하지 말고 반환
@@ -154,7 +154,7 @@ public class URLServiceImpl implements URLService {
         ClickEvent click = ClickEvent.builder().url(url).referrer(referrer).ipAddress(ipAddress)
             .userAgent(userAgent).build();  // 클릭 이벤트 생성 및 저장
         clickEventRepository.save(click);
-
+        System.out.println(click.toString());
         return url;
     }
 
