@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class URLInfoResponse {
+
     private boolean isValid;
     private String originUrl;
 }

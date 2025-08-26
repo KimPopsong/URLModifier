@@ -1,6 +1,7 @@
 package bigmac.urlmodifierbackend.global.util;
 
 public class SnowflakeIdGenerator {
+
     private static final long EPOCH = 1735689600000L; // 2025-01-01
 
     private final long workerId;
@@ -20,15 +21,12 @@ public class SnowflakeIdGenerator {
     private long sequence = 0L;
     private long lastTimestamp = -1L;
 
-    public SnowflakeIdGenerator(long workerId, long datacenterId)
-    {
-        if (workerId > maxWorkerId || workerId < 0)
-        {
+    public SnowflakeIdGenerator(long workerId, long datacenterId) {
+        if (workerId > maxWorkerId || workerId < 0) {
             throw new IllegalArgumentException("workerId out of range");
         }
 
-        if (datacenterId > maxDatacenterId || datacenterId < 0)
-        {
+        if (datacenterId > maxDatacenterId || datacenterId < 0) {
             throw new IllegalArgumentException("datacenterId out of range");
         }
 
@@ -36,47 +34,38 @@ public class SnowflakeIdGenerator {
         this.datacenterId = datacenterId;
     }
 
-    public synchronized long nextId()
-    {
+    public synchronized long nextId() {
         long timestamp = currentTime();
 
-        if (timestamp < lastTimestamp)
-        {
+        if (timestamp < lastTimestamp) {
             throw new RuntimeException("Clock moved backwards. Refusing to generate id.");
         }
 
-        if (timestamp == lastTimestamp)
-        {
+        if (timestamp == lastTimestamp) {
             sequence = (sequence + 1) & sequenceMask;
 
-            if (sequence == 0)
-            {
+            if (sequence == 0) {
                 timestamp = waitUntilNextMillis(lastTimestamp);
             }
-        }
-
-        else
-        {
+        } else {
             sequence = 0L;
         }
 
         lastTimestamp = timestamp;
 
-        return ((timestamp - EPOCH) << timestampLeftShift) | (datacenterId << datacenterIdShift) | (workerId << workerIdShift) | sequence;
+        return ((timestamp - EPOCH) << timestampLeftShift) | (datacenterId << datacenterIdShift) | (
+            workerId << workerIdShift) | sequence;
     }
 
-    private long waitUntilNextMillis(long lastTimestamp)
-    {
+    private long waitUntilNextMillis(long lastTimestamp) {
         long timestamp = currentTime();
-        while (timestamp <= lastTimestamp)
-        {
+        while (timestamp <= lastTimestamp) {
             timestamp = currentTime();
         }
         return timestamp;
     }
 
-    private long currentTime()
-    {
+    private long currentTime() {
         return System.currentTimeMillis();
     }
 }

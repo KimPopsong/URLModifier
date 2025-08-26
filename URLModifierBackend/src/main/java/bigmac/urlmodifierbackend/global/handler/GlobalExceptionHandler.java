@@ -30,14 +30,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(URLException.class)
     public ResponseEntity<ErrorResponse> handleURLException(URLException e) {
-        ErrorResponse response = new ErrorResponse("URL_Make_Fail", e.getMessage());
+        ErrorResponse response = new ErrorResponse("URL_MAKE_FAIL", e.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
 
     @ExceptionHandler(URLFindException.class)
     public ResponseEntity<ErrorResponse> handleURLFindException(URLFindException e) {
-        ErrorResponse response = new ErrorResponse("URL_Find_Fail", e.getMessage());
+        ErrorResponse response = new ErrorResponse("URL_FIND_FAIL", e.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
