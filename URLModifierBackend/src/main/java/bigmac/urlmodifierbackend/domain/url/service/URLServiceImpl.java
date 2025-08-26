@@ -2,7 +2,9 @@ package bigmac.urlmodifierbackend.domain.url.service;
 
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
+import bigmac.urlmodifierbackend.domain.url.model.ClickEvent;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
+import bigmac.urlmodifierbackend.domain.url.repository.ClickEventRepository;
 import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
@@ -24,6 +26,7 @@ import org.springframework.web.server.ResponseStatusException;
 public class URLServiceImpl implements URLService {
 
     private final URLRepository urlRepository;
+    private final ClickEventRepository clickEventRepository;
     private final UserRepository userRepository;
     private final SnowflakeIdGenerator idGenerator;
 
@@ -118,12 +121,41 @@ public class URLServiceImpl implements URLService {
     /**
      * 원본 URL 확인
      *
-     * @param shortUrl 단축 URL
+     * @param shortenedUrl 단축 URL
      * @return Optional<URL>
      */
     @Override
-    public Optional<URL> getOriginURLByShortURL(String shortUrl) {
-        return urlRepository.findByShortenedURL(shortUrl);
+    public Optional<URL> getOriginURLByShortURL(String shortenedUrl) {
+        return urlRepository.findByShortenedURL(shortenedUrl);
+    }
+
+    /**
+     * 단축 URL을 받아 원본 URL로 리디렉션
+     *
+     * @param referrer     접속한 사람이 사용한 웹사이트
+     * @param userAgent    접속한 사람이 사용한 브라우저
+     * @param ipAddress    접속한 사람의 IP
+     * @param shortenedUrl 단축 URL
+     * @return Optional<URL>
+     */
+    @Transactional
+    @Override
+    public URL redirectToOriginal(String referrer, String userAgent, String ipAddress,
+        String shortenedUrl) {
+        Optional<URL> optionalUrl = urlRepository.findByShortenedURL(shortenedUrl);
+
+        if (optionalUrl.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                "URL이 존재하지 않습니다.");  // 404 Not Found 에러 발생
+        }
+
+        URL url = optionalUrl.get();
+
+        ClickEvent click = ClickEvent.builder().url(url).referrer(referrer).ipAddress(ipAddress)
+            .userAgent(userAgent).build();  // 클릭 이벤트 생성 및 저장
+        clickEventRepository.save(click);
+
+        return url;
     }
 
     private void checkUser(User user) {

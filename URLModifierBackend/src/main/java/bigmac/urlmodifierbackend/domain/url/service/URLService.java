@@ -11,5 +11,8 @@ public interface URLService {
 
     URL makeCustomURL(User user, CustomURLRequest customURLRequest);
 
-    Optional<URL> getOriginURLByShortURL(String shortUrl);
+    Optional<URL> getOriginURLByShortURL(String shortenedUrl);
+
+    URL redirectToOriginal(String referrer, String userAgent, String ipAddress,
+        String shortenedUrl);
 }
