@@ -22,8 +22,11 @@ public class URLServiceImpl implements URLService {
 
     private final URLRepository urlRepository;
     private final SnowflakeIdGenerator idGenerator;
-    @Value("${server.base-url}")
-    private String baseUrl;
+
+    @Value("${custom.BE_BASE_URL}")
+    private String BE_BASE_URL;
+    @Value("${custom.FE_BASE_URL}")
+    private String FE_BASE_URL;
 
     /**
      * 주어진 URL이 DB에 있는지 확인 후 있다면 DB에 있는 값 반환. 없다면 단축 후 DB 저장 및 반환

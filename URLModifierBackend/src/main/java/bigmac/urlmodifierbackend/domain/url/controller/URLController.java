@@ -30,8 +30,10 @@ public class URLController {
 
     private final URLService urlService;
 
-    @Value("${server.base-url}")
-    private String baseUrl;
+    @Value("${custom.BE_BASE_URL}")
+    private String BE_BASE_URL;
+    @Value("${custom.FE_BASE_URL}")
+    private String FE_BASE_URL;
 
     /**
      * 원본 URL을 받아 단축 URL과 QR 코드를 생성
@@ -44,8 +46,8 @@ public class URLController {
         @RequestBody URLRequest urlRequest) {
         URL url = urlService.makeURLShort(urlRequest.getUrl(), user);
 
-        return ResponseEntity.created(URI.create(baseUrl + url.getShortenedURL())).body(
-            new URLResponse(baseUrl + url.getShortenedURL(),
+        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
+            new URLResponse(BE_BASE_URL + url.getShortenedURL(),
                 url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
     }
 
@@ -61,8 +63,8 @@ public class URLController {
         @RequestBody CustomURLRequest customURLRequest) {
         URL url = urlService.makeCustomURL(user, customURLRequest);
 
-        return ResponseEntity.created(URI.create(baseUrl + url.getShortenedURL())).body(
-            new URLResponse(baseUrl + url.getShortenedURL(),
+        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
+            new URLResponse(BE_BASE_URL + url.getShortenedURL(),
                 url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
     }
 

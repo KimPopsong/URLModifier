@@ -26,6 +26,6 @@ spring:
 jwt:
   secret: testChangeLater
 
-server:
-  base-url: http://localhost:8080/
-  front-url: http://localhost:5173/
+custom:
+  BE_BASE_URL: http://localhost:8080/
+  FE_BASE_URL: http://localhost:5173/
