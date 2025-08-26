@@ -25,7 +25,7 @@ public class URL {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user", nullable = true)
+    @JoinColumn(name = "users", nullable = true)
     private User user;
 
     @Column(name = "origin_url", nullable = false, unique = true, columnDefinition = "TEXT")
