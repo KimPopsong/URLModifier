@@ -104,6 +104,7 @@ public class AuthServiceImpl implements AuthService {
      * @param request HttpOnly 쿠키
      * @return 새로운 accessToken, refreshToken 발급
      */
+    @Transactional
     @Override
     public JwtResponse refreshToken(HttpServletRequest request) {
         String refreshToken = Arrays.stream(
@@ -134,6 +135,7 @@ public class AuthServiceImpl implements AuthService {
      *
      * @param authorizationHeader JWT
      */
+    @Transactional
     @Override
     public void logoutUser(String authorizationHeader) {
         String accessToken = authorizationHeader.substring(7);

@@ -14,7 +14,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -48,7 +47,7 @@ public class URLController {
         URL url = urlService.makeURLShort(user, urlRequest.getUrl());
 
         return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
-            new URLResponse(BE_BASE_URL + url.getShortenedURL(),
+            new URLResponse(url.getId(), urlRequest.getUrl(), BE_BASE_URL + url.getShortenedURL(),
                 url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
     }
 
@@ -65,23 +64,8 @@ public class URLController {
         URL url = urlService.makeCustomURL(user, customURLRequest);
 
         return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
-            new URLResponse(BE_BASE_URL + url.getShortenedURL(),
+            new URLResponse(url.getId(), url.getOriginURL(), BE_BASE_URL + url.getShortenedURL(),
                 url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
-    }
-
-    /**
-     * 단축 URL 제거. 제작자가 없는 URL은 제거 불가
-     *
-     * @param user       사용자 정보
-     * @param urlRequest 제거하려는 단축 URL
-     * @return
-     */
-    @DeleteMapping("/short-urls")
-    public ResponseEntity<Void> deleteURL(@AuthenticationPrincipal User user,
-        @RequestBody URLRequest urlRequest) {
-        urlService.deleteURL(user, urlRequest.getUrl());
-
-        return ResponseEntity.ok().build();
     }
 
     /**

@@ -3,6 +3,7 @@ package bigmac.urlmodifierbackend.global.handler;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
+import bigmac.urlmodifierbackend.domain.user.exception.URLFindException;
 import bigmac.urlmodifierbackend.global.dto.ErrorResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(URLException.class)
     public ResponseEntity<ErrorResponse> handleURLException(URLException e) {
         ErrorResponse response = new ErrorResponse("URL_Make_Fail", e.getMessage());
+
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(URLFindException.class)
+    public ResponseEntity<ErrorResponse> handleURLFindException(URLFindException e) {
+        ErrorResponse response = new ErrorResponse("URL_Find_Fail", e.getMessage());
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }

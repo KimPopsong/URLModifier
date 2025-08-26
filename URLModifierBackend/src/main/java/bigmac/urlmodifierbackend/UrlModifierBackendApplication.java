@@ -20,7 +20,6 @@ public class UrlModifierBackendApplication {
  * <p>
  * <p>
  * * 사용자 계정 시스템 (User Accounts):
- * * 기능: 이메일/비밀번호나 소셜 로그인(Google, GitHub 등)을 통해 사용자가 가입하고 로그인할 수 있습니다.
  * * 장점: 사용자는 자신이 생성한 모든 단축 URL을 하나의 대시보드에서 모아보고 관리할 수 있습니다. 이는 아래에 설명될 다른 기능들의 기반이 됩니다.
  * <p>
  * <p>

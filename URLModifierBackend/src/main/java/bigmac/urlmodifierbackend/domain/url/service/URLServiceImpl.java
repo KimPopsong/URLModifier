@@ -5,6 +5,7 @@ import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
 import bigmac.urlmodifierbackend.domain.user.model.User;
+import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import bigmac.urlmodifierbackend.global.util.Base62;
 import bigmac.urlmodifierbackend.global.util.QRCodeUtil;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
@@ -12,8 +13,10 @@ import java.util.Base64;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class URLServiceImpl implements URLService {
 
     private final URLRepository urlRepository;
+    private final UserRepository userRepository;
     private final SnowflakeIdGenerator idGenerator;
 
     @Value("${custom.BE_BASE_URL}")
@@ -38,6 +42,8 @@ public class URLServiceImpl implements URLService {
     @Transactional
     @Override
     public URL makeURLShort(User user, String originURL) {
+        this.checkUser(user);
+
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
         if (findByOriginURL.isPresent())  // 이미 같은 URL이 DB에 있다면 계산하지 말고 반환
@@ -79,6 +85,8 @@ public class URLServiceImpl implements URLService {
     @Transactional
     @Override
     public URL makeCustomURL(User user, CustomURLRequest customURLRequest) {
+        this.checkUser(user);
+
         Optional<URL> shortenedURL = urlRepository.findByShortenedURL(
             customURLRequest.getCustomURL());
 
@@ -108,18 +116,6 @@ public class URLServiceImpl implements URLService {
     }
 
     /**
-     * 단축 URL 제거. 제작자가 없는 URL은 제거 불가
-     *
-     * @param user
-     * @param shortenedURL
-     */
-    @Override
-    public void deleteURL(User user, String shortenedURL) {
-        // TODO : ID로 삭제할지, url 값을 받아올지 고민 필요
-        Optional<URL> s = urlRepository.findByShortenedURL(shortenedURL);
-    }
-
-    /**
      * 원본 URL 확인
      *
      * @param shortUrl 단축 URL
@@ -128,5 +124,14 @@ public class URLServiceImpl implements URLService {
     @Override
     public Optional<URL> getOriginURLByShortURL(String shortUrl) {
         return urlRepository.findByShortenedURL(shortUrl);
+    }
+
+    private void checkUser(User user) {
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인이 필요합니다");
+        }
+
+        userRepository.findById(user.getId()).orElseThrow(
+            () -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 사용자입니다."));
     }
 }

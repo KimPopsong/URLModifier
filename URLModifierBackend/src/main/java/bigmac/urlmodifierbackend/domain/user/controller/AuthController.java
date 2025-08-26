@@ -72,5 +72,6 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
+    // TODO 회원 탈퇴
     // TODO SMTP 설정
 }

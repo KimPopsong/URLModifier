@@ -11,7 +11,5 @@ public interface URLService {
 
     URL makeCustomURL(User user, CustomURLRequest customURLRequest);
 
-    void deleteURL(User user, String shortenedURL);
-
     Optional<URL> getOriginURLByShortURL(String shortUrl);
 }
