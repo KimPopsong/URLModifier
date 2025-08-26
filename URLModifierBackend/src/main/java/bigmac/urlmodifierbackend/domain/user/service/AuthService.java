@@ -2,6 +2,7 @@ package bigmac.urlmodifierbackend.domain.user.service;
 
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
+import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import jakarta.servlet.http.HttpServletRequest;
 
@@ -13,7 +14,7 @@ public interface AuthService {
 
     UserLoginResponse loginUser(UserLoginRequest userLoginRequest);
 
-    UserLoginResponse refreshToken(HttpServletRequest request);
+    JwtResponse refreshToken(HttpServletRequest request);
 
     void logoutUser(String authorizationHeader);
 }

@@ -5,8 +5,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
 public class UrlModifierBackendApplication {
-    public static void main(String[] args)
-    {
+
+    public static void main(String[] args) {
         SpringApplication.run(UrlModifierBackendApplication.class, args);
     }
 }
@@ -22,11 +22,6 @@ public class UrlModifierBackendApplication {
  * * 사용자 계정 시스템 (User Accounts):
  * * 기능: 이메일/비밀번호나 소셜 로그인(Google, GitHub 등)을 통해 사용자가 가입하고 로그인할 수 있습니다.
  * * 장점: 사용자는 자신이 생성한 모든 단축 URL을 하나의 대시보드에서 모아보고 관리할 수 있습니다. 이는 아래에 설명될 다른 기능들의 기반이 됩니다.
- * <p>
- * <p>
- * * 사용자 지정 단축 URL (Custom Short URLs):
- * * 기능: base-url/abcdef 형태의 무작위 문자열 대신, base-url/my-event-2025 와 같이 사용자가 직접 원하는 문자열로 단축 URL을 만들 수 있게 합니다.
- * * 장점: 브랜드 노출에 유리하고 기억하기 쉬워 마케팅용으로 매우 유용합니다.
  * <p>
  * <p>
  * * 링크 만료 기능 (Link Expiration):
@@ -72,8 +67,8 @@ public class UrlModifierBackendApplication {
  * * API 제공 (Developer API):
  * * 기능: 다른 개발자들이 자신의 애플리케이션에서 프로그래밍 방식으로 URL을 단축하고 관리할 수 있도록 REST API를 제공합니다. 사용자별로 API 키를 발급하여 인증합니다.
  * * 장점: 서비스의 활용 범위를 크게 넓혀 다른 서비스와의 통합을 가능하게 합니다.
- *
+ * <p>
  * 타 단축 사이트 링크는 불가
- * 
+ * <p>
  * 로봇인가요? -> 로그인 한 유저는 체크 안하기
  */

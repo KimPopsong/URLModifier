@@ -16,8 +16,12 @@ import lombok.Setter;
 @NoArgsConstructor
 @Table(name = "user")
 public class User {
+
     @Id
     private Long id;
+
+    @Column(name = "nick_name", nullable = false)
+    private String nickName;
 
     @Column(name = "email", nullable = false, unique = true)
     private String email;

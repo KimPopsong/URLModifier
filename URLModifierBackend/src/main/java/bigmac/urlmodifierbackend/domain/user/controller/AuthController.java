@@ -2,6 +2,7 @@ package bigmac.urlmodifierbackend.domain.user.controller;
 
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
+import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import bigmac.urlmodifierbackend.domain.user.service.AuthService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -38,7 +39,7 @@ public class AuthController {
      * 로그인
      *
      * @param userLoginRequest 이메일과 비밀번호
-     * @return accessToken, refreshToken
+     * @return 로그인한 사용자의 정보
      */
     @PostMapping("/login")
     public ResponseEntity<UserLoginResponse> loginUser(
@@ -53,7 +54,7 @@ public class AuthController {
      * @return 새로운 accessToken, refreshToken 발급
      */
     @PostMapping("/refresh")
-    public ResponseEntity<UserLoginResponse> refreshToken(HttpServletRequest request) {
+    public ResponseEntity<JwtResponse> refreshToken(HttpServletRequest request) {
         return ResponseEntity.ok(authService.refreshToken(request));
     }
 

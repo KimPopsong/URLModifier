@@ -2,6 +2,7 @@ package bigmac.urlmodifierbackend.domain.user.service;
 
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
+import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
@@ -82,8 +83,16 @@ public class AuthServiceImpl implements AuthService {
             result.get().getPassword())) {
             User user = result.get();
 
-            return new UserLoginResponse(jwtUtil.generateAccessToken(user.getEmail()),
+            JwtResponse jwtResponse = new JwtResponse(jwtUtil.generateAccessToken(user.getEmail()),
                 jwtUtil.generateRefreshToken(user.getEmail()));
+
+            UserLoginResponse userLoginResponse = new UserLoginResponse();
+
+            userLoginResponse.setUserId(user.getId());
+            userLoginResponse.setEmail(user.getEmail());
+            userLoginResponse.setJwtResponse(jwtResponse);
+
+            return userLoginResponse;
         } else {  // 비밀번호 불일치
             throw new LoginFailException("이메일이 존재하지 않거나, 비밀번호가 일치하지 않습니다.");
         }
@@ -96,7 +105,7 @@ public class AuthServiceImpl implements AuthService {
      * @return 새로운 accessToken, refreshToken 발급
      */
     @Override
-    public UserLoginResponse refreshToken(HttpServletRequest request) {
+    public JwtResponse refreshToken(HttpServletRequest request) {
         String refreshToken = Arrays.stream(
                 Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]))
             .filter(cookie -> "refresh_token".equals(cookie.getName())).map(Cookie::getValue)
@@ -116,7 +125,7 @@ public class AuthServiceImpl implements AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "리프레시 토큰 불일치");
         }
 
-        return new UserLoginResponse(jwtUtil.generateAccessToken(email),
+        return new JwtResponse(jwtUtil.generateAccessToken(email),
             jwtUtil.generateRefreshToken(email));
     }
 
