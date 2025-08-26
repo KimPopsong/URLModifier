@@ -37,7 +37,7 @@ public class URLServiceImpl implements URLService {
      */
     @Transactional
     @Override
-    public URL makeURLShort(String originURL, User user) {
+    public URL makeURLShort(User user, String originURL) {
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
         if (findByOriginURL.isPresent())  // 이미 같은 URL이 DB에 있다면 계산하지 말고 반환
@@ -66,9 +66,7 @@ public class URLServiceImpl implements URLService {
 
             URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
 
-            urlRepository.save(newUrl);
-
-            return newUrl;
+            return urlRepository.save(newUrl);
         }
     }
 
@@ -105,10 +103,20 @@ public class URLServiceImpl implements URLService {
             URL newUrl = new URL(idGenerator.nextId(), user, customURLRequest.getOriginURL(),
                 customURLRequest.getCustomURL(), qrCodeBase64);
 
-            URL url = urlRepository.save(newUrl);
-
-            return url;
+            return urlRepository.save(newUrl);
         }
+    }
+
+    /**
+     * 단축 URL 제거. 제작자가 없는 URL은 제거 불가
+     *
+     * @param user
+     * @param shortenedURL
+     */
+    @Override
+    public void deleteURL(User user, String shortenedURL) {
+        // TODO : ID로 삭제할지, url 값을 받아올지 고민 필요
+        Optional<URL> s = urlRepository.findByShortenedURL(shortenedURL);
     }
 
     /**

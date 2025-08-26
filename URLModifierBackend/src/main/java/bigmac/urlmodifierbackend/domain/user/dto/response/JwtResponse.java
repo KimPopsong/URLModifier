@@ -1,12 +1,11 @@
 package bigmac.urlmodifierbackend.domain.user.dto.response;
 
-import bigmac.urlmodifierbackend.domain.user.model.User;
 import lombok.AllArgsConstructor;
-import lombok.Data;
+import lombok.Getter;
 
-@Data
+@Getter
 @AllArgsConstructor
-public class UserLoginResponse extends User {
+public class JwtResponse {
 
     private String accessToken;
     private String refreshToken;

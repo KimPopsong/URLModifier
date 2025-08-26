@@ -3,9 +3,8 @@ package bigmac.urlmodifierbackend.domain.user.controller;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
-import bigmac.urlmodifierbackend.domain.user.model.User;
-import bigmac.urlmodifierbackend.domain.user.service.UserService;
-import bigmac.urlmodifierbackend.global.util.JwtUtil;
+import bigmac.urlmodifierbackend.domain.user.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -17,11 +16,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/users")
-public class UserController {
+@RequestMapping("/auth")
+public class AuthController {
 
-    private final UserService userService;
-    private final JwtUtil jwtUtil;
+    private final AuthService authService;
 
     /**
      * 회원가입
@@ -31,7 +29,7 @@ public class UserController {
      */
     @PostMapping("/register")
     public ResponseEntity<Void> registerUser(@RequestBody UserRegisterRequest userRegisterRequest) {
-        userService.registerUser(userRegisterRequest);
+        authService.registerUser(userRegisterRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
     }
@@ -45,12 +43,18 @@ public class UserController {
     @PostMapping("/login")
     public ResponseEntity<UserLoginResponse> loginUser(
         @RequestBody UserLoginRequest userLoginRequest) {
-        User user = userService.loginUser(userLoginRequest);
+        return ResponseEntity.ok(authService.loginUser(userLoginRequest));
+    }
 
-        String accessToken = jwtUtil.generateAccessToken(user.getEmail());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
-
-        return ResponseEntity.ok(new UserLoginResponse(accessToken, refreshToken));
+    /**
+     * 리프레시 토큰으로 JWT 재발급
+     *
+     * @param request HttpOnly 쿠키
+     * @return 새로운 accessToken, refreshToken 발급
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<UserLoginResponse> refreshToken(HttpServletRequest request) {
+        return ResponseEntity.ok(authService.refreshToken(request));
     }
 
     /**
@@ -62,7 +66,7 @@ public class UserController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logoutUser(
         @RequestHeader("Authorization") String authorizationHeader) {
-        userService.logoutUser(authorizationHeader);
+        authService.logoutUser(authorizationHeader);
 
         return ResponseEntity.status(HttpStatus.OK).build();
     }

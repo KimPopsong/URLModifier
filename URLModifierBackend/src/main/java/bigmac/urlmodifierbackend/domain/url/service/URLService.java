@@ -7,9 +7,11 @@ import java.util.Optional;
 
 public interface URLService {
 
-    URL makeURLShort(String url, User user);
+    URL makeURLShort(User user, String url);
 
     URL makeCustomURL(User user, CustomURLRequest customURLRequest);
+
+    void deleteURL(User user, String shortenedURL);
 
     Optional<URL> getOriginURLByShortURL(String shortUrl);
 }

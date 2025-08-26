@@ -54,7 +54,8 @@ public class JwtUtil {
         String refreshToken = Jwts.builder().subject(email).issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + REFRESH_TIME))
             .signWith(this.getSignInKey()).compact();
-
+        this.deleteRefreshToken(email);  // 명시적으로 삭제
+        
         // Redis에 refresh 토큰 저장 (key: refresh:{email}, TTL: 7일)
         redisTemplate.opsForValue()
             .set("refresh:" + email, refreshToken, REFRESH_TIME, TimeUnit.MILLISECONDS);
@@ -92,7 +93,6 @@ public class JwtUtil {
     public boolean isBlacklisted(String token) {
         return redisTemplate.hasKey("blacklist:" + token);
     }
-
 
     /**
      * 사용자 이메일 추출
