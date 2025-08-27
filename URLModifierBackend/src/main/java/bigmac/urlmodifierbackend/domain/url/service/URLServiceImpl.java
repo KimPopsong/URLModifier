@@ -18,12 +18,14 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -66,16 +68,7 @@ public class URLServiceImpl implements URLService {
                 shortenedURL = Base62.encode(id);
             } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
 
-            String qrCodeBase64 = "";
-
-            try  // QR코드 이미지 생성
-            {
-                byte[] qrImage = QRCodeUtil.generateQRCodeImage(originURL, 200, 200);
-                qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
-            }
+            String qrCodeBase64 = generateQRCode(originURL);
 
             URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
 
@@ -103,17 +96,7 @@ public class URLServiceImpl implements URLService {
             || customURLRequest.getCustomURL().length() <= 5) {  // 글자 길이 제한
             throw new URLException("단축 URL의 길이가 올바르지 않습니다.");
         } else {  // 생성된 customURL이 없다면
-            String qrCodeBase64 = "";
-
-            try  // QR코드 이미지 생성
-            {
-                byte[] qrImage = QRCodeUtil.generateQRCodeImage(customURLRequest.getOriginURL(),
-                    200, 200);
-                qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
-            } catch (Exception e) {
-                e.printStackTrace();
-                throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
-            }
+            String qrCodeBase64 = generateQRCode(customURLRequest.getOriginURL());
 
             URL newUrl = new URL(idGenerator.nextId(), user, customURLRequest.getOriginURL(),
                 customURLRequest.getCustomURL(), qrCodeBase64);
@@ -158,7 +141,7 @@ public class URLServiceImpl implements URLService {
         ClickEvent click = ClickEvent.builder().url(url).referrer(referrer).ipAddress(ipAddress)
             .userAgent(userAgent).build();  // 클릭 이벤트 생성 및 저장
         clickEventRepository.save(click);
-        
+
         return url;
     }
 
@@ -173,12 +156,9 @@ public class URLServiceImpl implements URLService {
     public void deleteUrl(User user, Long urlId) {
         this.checkUser(user);
 
-        URL url = urlRepository.findById(urlId)
-            .orElseThrow(() -> new URLFindException("유효하지 않은 URL입니다."));
+        URL url = findUrlOrThrowException(urlId);
 
-        if (!Objects.equals(url.getUser().getId(), user.getId())) {
-            throw new URLException("본인의 URL이 아닙니다.");
-        }
+        this.validateUrlOwnership(user, url);
 
         urlRepository.deleteById(urlId);
     }
@@ -194,12 +174,9 @@ public class URLServiceImpl implements URLService {
     public URLDetailResponse detailUrl(User user, Long urlId) {
         this.checkUser(user);
 
-        URL url = urlRepository.findById(urlId)
-            .orElseThrow(() -> new URLFindException("유효하지 않은 URL입니다."));
+        URL url = findUrlOrThrowException(urlId);
 
-        if (!Objects.equals(url.getUser().getId(), user.getId())) {
-            throw new URLException("본인의 URL이 아닙니다.");
-        }
+        this.validateUrlOwnership(user, url);
 
         List<ClickEvent> allClickEvent = clickEventRepository.findAllByUrl(url);
 
@@ -209,6 +186,43 @@ public class URLServiceImpl implements URLService {
         urlDetailResponse.setClickEventList(allClickEvent);
 
         return urlDetailResponse;
+    }
+
+    /**
+     * QR코드 생성
+     *
+     * @param originURL 원본 URL
+     * @return QR코드 Base64
+     */
+    private static String generateQRCode(String originURL) {
+        String qrCodeBase64 = "";
+
+        try  // QR코드 이미지 생성
+        {
+            byte[] qrImage = QRCodeUtil.generateQRCodeImage(originURL, 200, 200);
+            qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
+        } catch (Exception e) {
+            log.error("단축 URL 생성 중 오류 발생: {}", originURL, e);
+            throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
+        }
+        return qrCodeBase64;
+    }
+
+    /**
+     * Repository에 URL을 검색하고 없을시 Throw
+     *
+     * @param urlId 찾고자 하는 URL의 ID
+     * @return URL
+     */
+    private URL findUrlOrThrowException(Long urlId) {
+        return urlRepository.findById(urlId)
+            .orElseThrow(() -> new URLFindException("유효하지 않은 URL입니다."));
+    }
+
+    private void validateUrlOwnership(User user, URL url) {
+        if (!Objects.equals(url.getUser().getId(), user.getId())) {
+            throw new URLException("본인의 URL이 아닙니다.");
+        }
     }
 
     private void checkUser(User user) {
