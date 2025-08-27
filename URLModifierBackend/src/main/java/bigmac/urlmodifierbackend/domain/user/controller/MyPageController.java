@@ -1,5 +1,6 @@
 package bigmac.urlmodifierbackend.domain.user.controller;
 
+import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.MyPageResponse;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.service.MyPageService;
@@ -44,5 +45,18 @@ public class MyPageController {
         myPageService.deleteUrl(user, urlId);
 
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    }
+
+    /**
+     * URL 통계 확인
+     *
+     * @param user  사용자 정보
+     * @param urlId 확인하려는 URL의 ID
+     * @return URLDetailResponse
+     */
+    @GetMapping("/urls/{urlId}")
+    public ResponseEntity<URLDetailResponse> detailUrl(@AuthenticationPrincipal User user,
+        @PathVariable Long urlId) {
+        return ResponseEntity.ok(myPageService.detailUrl(user, urlId));
     }
 }

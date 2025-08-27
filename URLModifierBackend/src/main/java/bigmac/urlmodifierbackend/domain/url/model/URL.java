@@ -34,9 +34,6 @@ public class URL {
     @Column(name = "shortened_url", nullable = false, unique = true, length = 30)
     private String shortenedURL;
 
-//    @Column(name = "custom_url", nullable = true, columnDefinition = "TEXT")
-//    private String customURL;
-
     @Column(name = "qr_code", nullable = false, columnDefinition = "TEXT")
     private String qrCode;
 
