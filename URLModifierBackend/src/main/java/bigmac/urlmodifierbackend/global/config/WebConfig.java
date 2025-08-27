@@ -15,7 +15,7 @@ public class WebConfig implements WebMvcConfigurer {
     private String FRONT_BASE_URL;
 
     @Bean
-    public PasswordEncoder passwordEncoder()  // TODO : SecurityConfig에 둘 시 순환 참조 문제 발생
+    public PasswordEncoder passwordEncoder()  // SecurityConfig에 둘 시 순환 참조 문제 발생
     {
         return new BCryptPasswordEncoder();
     }
