@@ -31,6 +31,7 @@ import org.springframework.web.server.ResponseStatusException;
 @Transactional(readOnly = true)
 public class URLServiceImpl implements URLService {
 
+    private final URLValidateServiceImpl urlValidateService;
     private final URLRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
     private final UserRepository userRepository;
@@ -60,6 +61,8 @@ public class URLServiceImpl implements URLService {
             return findByOriginURL.get();
         } else  // 단축 URL 생성
         {
+            urlValidateService.validateOriginalUrl(originURL);
+
             long id = idGenerator.nextId();
             String shortenedURL;
 
@@ -86,6 +89,7 @@ public class URLServiceImpl implements URLService {
     @Override
     public URL makeCustomURL(User user, CustomURLRequest customURLRequest) {
         this.checkUser(user);
+        urlValidateService.validateOriginalUrl(customURLRequest.getOriginURL());
 
         Optional<URL> shortenedURL = urlRepository.findByShortenedURL(
             customURLRequest.getCustomURL());
