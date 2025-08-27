@@ -2,6 +2,7 @@ package bigmac.urlmodifierbackend.domain.url.controller;
 
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
+import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLInfoResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLResponse;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -104,5 +106,34 @@ public class URLController {
 
         return ResponseEntity.status(HttpStatus.FOUND).header("Location", url.getOriginURL())
             .build();  // HTTP 상태 코드 302 (Found)와 함께 Location 헤더에 원본 URL을 담아 리디렉션 응답
+    }
+
+
+    /**
+     * 단축 URL 제거
+     *
+     * @param user  사용자 정보
+     * @param urlId 제거하려는 URL의 ID
+     * @return HttpStatus.ACCEPTED
+     */
+    @DeleteMapping("/urls/{urlId}")
+    public ResponseEntity<Void> deleteUrl(@AuthenticationPrincipal User user,
+        @PathVariable Long urlId) {
+        urlService.deleteUrl(user, urlId);
+
+        return ResponseEntity.status(HttpStatus.ACCEPTED).build();
+    }
+
+    /**
+     * URL 통계 확인
+     *
+     * @param user  사용자 정보
+     * @param urlId 확인하려는 URL의 ID
+     * @return URLDetailResponse
+     */
+    @GetMapping("/urls/{urlId}")
+    public ResponseEntity<URLDetailResponse> detailUrl(@AuthenticationPrincipal User user,
+        @PathVariable Long urlId) {
+        return ResponseEntity.ok(urlService.detailUrl(user, urlId));
     }
 }

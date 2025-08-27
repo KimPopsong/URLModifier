@@ -1,17 +1,21 @@
 package bigmac.urlmodifierbackend.domain.url.service;
 
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
+import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.model.ClickEvent;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.repository.ClickEventRepository;
 import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
+import bigmac.urlmodifierbackend.domain.user.exception.URLFindException;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import bigmac.urlmodifierbackend.global.util.Base62;
 import bigmac.urlmodifierbackend.global.util.QRCodeUtil;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
 import java.util.Base64;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -154,8 +158,57 @@ public class URLServiceImpl implements URLService {
         ClickEvent click = ClickEvent.builder().url(url).referrer(referrer).ipAddress(ipAddress)
             .userAgent(userAgent).build();  // 클릭 이벤트 생성 및 저장
         clickEventRepository.save(click);
-        System.out.println(click.toString());
+        
         return url;
+    }
+
+    /**
+     * 단축 URL 제거
+     *
+     * @param user  사용자 정보
+     * @param urlId 제거하려는 URL의 ID
+     */
+    @Transactional
+    @Override
+    public void deleteUrl(User user, Long urlId) {
+        this.checkUser(user);
+
+        URL url = urlRepository.findById(urlId)
+            .orElseThrow(() -> new URLFindException("유효하지 않은 URL입니다."));
+
+        if (!Objects.equals(url.getUser().getId(), user.getId())) {
+            throw new URLException("본인의 URL이 아닙니다.");
+        }
+
+        urlRepository.deleteById(urlId);
+    }
+
+    /**
+     * URL 통계 확인
+     *
+     * @param user  사용자 정보
+     * @param urlId 확인하려는 URL의 ID
+     * @return URLDetailResponse
+     */
+    @Override
+    public URLDetailResponse detailUrl(User user, Long urlId) {
+        this.checkUser(user);
+
+        URL url = urlRepository.findById(urlId)
+            .orElseThrow(() -> new URLFindException("유효하지 않은 URL입니다."));
+
+        if (!Objects.equals(url.getUser().getId(), user.getId())) {
+            throw new URLException("본인의 URL이 아닙니다.");
+        }
+
+        List<ClickEvent> allClickEvent = clickEventRepository.findAllByUrl(url);
+
+        URLDetailResponse urlDetailResponse = new URLDetailResponse();
+
+        urlDetailResponse.urlTourlDetail(url);
+        urlDetailResponse.setClickEventList(allClickEvent);
+
+        return urlDetailResponse;
     }
 
     private void checkUser(User user) {
