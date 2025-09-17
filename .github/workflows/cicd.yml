@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted   # EC2에 설치한 Github Runner
+    runs-on: self-hosted
 
     steps:
       - name: Checkout repository
@@ -18,11 +18,12 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Build with Gradle
+      - name: Build Spring Boot project
+        working-directory: ./URLModifierBackend
         run: ./gradlew clean build -x test
 
       - name: Build Docker image
-        run: docker build -t my-spring-app:latest .
+        run: docker build -t url-modifier-app:latest .
 
       - name: Deploy with docker-compose
         run: |
