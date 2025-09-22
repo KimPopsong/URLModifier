@@ -26,6 +26,10 @@ jobs:
         working-directory: ./URLModifierBackend
         run: ./gradlew clean build -x test
 
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.ENV_FILE }}" > .env
+
       - name: Build Docker image
         run: docker build -t url-modifier-app:latest .
 

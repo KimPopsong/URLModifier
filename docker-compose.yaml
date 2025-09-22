@@ -12,20 +12,14 @@ services:
     depends_on:
       - db
       - redis
-    # environment:
-    #   SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/mydb
-    #   SPRING_DATASOURCE_USERNAME: myuser
-    #   SPRING_DATASOURCE_PASSWORD: mypass
-    #   SPRING_REDIS_HOST: redis
-    #   SPRING_REDIS_PORT: 6379
 
   db:
     image: postgres:14
     container_name: postgres
     environment:
-      POSTGRES_USER: myuser
-      POSTGRES_PASSWORD: mypass
-      POSTGRES_DB: mydb
+      POSTGRES_USER: dskim
+      POSTGRES_PASSWORD: passwordYO!
+      POSTGRES_DB: urlModifierDB
     ports:
       - "5432:5432"
     volumes:
