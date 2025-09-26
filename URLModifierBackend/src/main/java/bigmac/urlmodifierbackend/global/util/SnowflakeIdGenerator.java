@@ -59,9 +59,11 @@ public class SnowflakeIdGenerator {
 
     private long waitUntilNextMillis(long lastTimestamp) {
         long timestamp = currentTime();
+
         while (timestamp <= lastTimestamp) {
             timestamp = currentTime();
         }
+
         return timestamp;
     }
 

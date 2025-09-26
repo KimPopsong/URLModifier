@@ -31,9 +31,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String jwt;
         String userEmail = null;
 
-        if (authorizationHeader != null && authorizationHeader.startsWith(
-            "Bearer "))  // Authorization 헤더가 있고 Bearer로 시작하면 토큰 추출
-        {
+        // Authorization 헤더가 있고 Bearer로 시작하면 토큰 추출
+        if (authorizationHeader != null && authorizationHeader.startsWith("Bearer ")) {
             jwt = authorizationHeader.substring(7);
 
             // 블랙 리스트 확인
@@ -54,6 +53,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 response.setContentType("application/json");
                 response.setCharacterEncoding("UTF-8");
                 response.getWriter().write("{\"message\": \"Access token expired\"}");
+
                 return;
             }
         }

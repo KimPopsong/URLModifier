@@ -21,9 +21,11 @@ public class Base62 {
 
     public static long decode(String str) {
         long result = 0;
+
         for (int i = 0; i < str.length(); i++) {
             result = result * BASE + BASE62.indexOf(str.charAt(i));
         }
+        
         return result;
     }
 }
