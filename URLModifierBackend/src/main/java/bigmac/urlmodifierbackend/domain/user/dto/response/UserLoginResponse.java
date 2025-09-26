@@ -7,7 +7,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class UserLoginResponse {
 
-    private Long userId;
+    private String userId;
     private String email;
     private JwtResponse jwtResponse;
 }

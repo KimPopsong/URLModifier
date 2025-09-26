@@ -184,12 +184,8 @@ public class URLServiceImpl implements URLService {
 
         List<ClickEvent> allClickEvent = clickEventRepository.findAllByUrl(url);
 
-        URLDetailResponse urlDetailResponse = new URLDetailResponse();
-
-        urlDetailResponse.urlTourlDetail(url);
-        urlDetailResponse.setClickEventList(allClickEvent);
-
-        return urlDetailResponse;
+        return new URLDetailResponse(String.valueOf(url.getId()), url.getOriginURL(),
+            url.getShortenedURL(), url.getQrCode(), url.getCreatedAt(), allClickEvent);
     }
 
     /**

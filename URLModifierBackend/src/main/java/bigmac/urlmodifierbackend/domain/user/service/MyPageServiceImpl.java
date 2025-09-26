@@ -35,8 +35,8 @@ public class MyPageServiceImpl implements MyPageService {
         myPageResponse.setEmail(user.getEmail());
         myPageResponse.setNickname(user.getNickName());
         myPageResponse.setUrls(urlRepository.findByUser(user).stream().map(
-            url -> new URLResponse(url.getId(), url.getOriginURL(), url.getShortenedURL(),
-                url.getQrCode())).collect(Collectors.toList()));
+            url -> new URLResponse(String.valueOf(url.getId()), url.getOriginURL(),
+                url.getShortenedURL(), url.getQrCode())).collect(Collectors.toList()));
 
         return myPageResponse;
     }
