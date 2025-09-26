@@ -13,6 +13,9 @@ public class UrlModifierBackendApplication {
 /**
  * TODO
  * <p>
+ * Snowflake가 Long으로 FE에 보낼시 짤리는 문제 -> String으로 변환 후 전달
+ *
+ * <p>
  * * 링크 만료 기능 (Link Expiration):
  * * 기능: URL을 생성할 때 만료 날짜/시간을 설정하거나, 특정 클릭 횟수에 도달하면 링크가 비활성화되도록 설정합니다.
  * * 장점: 기간 한정 이벤트나 캠페인, 공유 파일 접근 제어 등에 유용합니다.
