@@ -3,9 +3,9 @@ spring:
     name: URLModifierBackend
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/URLModifier
-    username: url_user
-    password: url_user
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
     driver-class-name: org.postgresql.Driver
 
   jpa:
@@ -19,13 +19,12 @@ spring:
 
   data:
     redis: # Redis
-      host: localhost
+      host: ${REDIS_HOST}
       port: 6379
-      password: testChangeLater
 
 jwt:
   secret: testChangeLater
 
 custom:
-  BE_BASE_URL: http://localhost:8080/
-  FE_BASE_URL: http://localhost:5173/
+  BE_BASE_URL: ${BE_URL}
+  FE_BASE_URL: ${FE_URL}
