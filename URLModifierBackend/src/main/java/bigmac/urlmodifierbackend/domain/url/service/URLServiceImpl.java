@@ -55,8 +55,16 @@ public class URLServiceImpl implements URLService {
     @Transactional
     @Override
     public URL makeURLShort(@Nullable User user, String originURL) {
-        // 로그인한 사용자가 일반 URL을 만들 때는 항상 새로 생성 (마이페이지에서 관리하기 위해)
+        // 로그인한 사용자가 일반 URL을 만들 때
         if (user != null) {
+            // 해당 사용자가 이미 같은 originURL로 만든 URL이 있는지 확인
+            Optional<URL> existingUserURL = urlRepository.findByUserAndOriginURL(user, originURL);
+            if (existingUserURL.isPresent()) {
+                // 이미 만든 URL이 있으면 기존 것을 반환
+                return existingUserURL.get();
+            }
+
+            // 새로 생성 (마이페이지에서 관리하기 위해)
             urlValidateService.validateOriginalUrl(originURL);
 
             long id = idGenerator.nextId();
@@ -78,15 +86,11 @@ public class URLServiceImpl implements URLService {
 
         // 비로그인 사용자는 user가 null인 기존 URL만 재사용
         // 로그인한 사용자의 URL이 있으면 새로 생성해야 함
-        Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
+        Optional<URL> anonymousURL = urlRepository.findFirstByOriginURLAndUserIsNull(originURL);
 
-        if (findByOriginURL.isPresent()) {
-            URL existingUrl = findByOriginURL.get();
-            // 기존 URL의 user가 null인 경우에만 재사용 (비로그인 사용자가 만든 URL)
-            if (existingUrl.getUser() == null) {
-                return existingUrl;
-            }
-            // 로그인한 사용자의 URL이면 새로 생성 (user를 null로)
+        if (anonymousURL.isPresent()) {
+            // 비로그인 사용자가 이미 만든 URL이 있으면 재사용
+            return anonymousURL.get();
         }
 
         // 새로 생성 (비로그인 사용자는 user가 null)

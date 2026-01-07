@@ -17,4 +17,6 @@ public interface URLRepository extends JpaRepository<URL, Long> {
     List<URL> findByUser(User user);
 
     Optional<URL> findByUserAndOriginURL(User user, String originURL);
+
+    Optional<URL> findFirstByOriginURLAndUserIsNull(String originURL);
 }

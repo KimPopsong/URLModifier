@@ -5,6 +5,7 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
@@ -18,7 +19,12 @@ import org.hibernate.annotations.CreationTimestamp;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "url")
+@Table(name = "url", indexes = {
+    @Index(name = "idx_url_origin_url", columnList = "origin_url"),
+    @Index(name = "idx_url_user_origin", columnList = "users,origin_url"),
+    @Index(name = "idx_url_user", columnList = "users"),
+    @Index(name = "idx_url_origin_user_null", columnList = "origin_url", unique = false)
+})
 public class URL {
 
     @Id

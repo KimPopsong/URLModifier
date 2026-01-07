@@ -31,4 +31,9 @@ CREATE TABLE IF NOT EXISTS public.url
 ) MATCH SIMPLE
   ON UPDATE NO ACTION
   ON DELETE NO ACTION
-    )
+    );
+
+-- 성능 최적화를 위한 인덱스 추가
+CREATE INDEX IF NOT EXISTS idx_url_origin_url ON public.url(origin_url);
+CREATE INDEX IF NOT EXISTS idx_url_user_origin ON public.url(users, origin_url);
+CREATE INDEX IF NOT EXISTS idx_url_user ON public.url(users);
