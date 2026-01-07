@@ -1,5 +1,7 @@
 package bigmac.urlmodifierbackend.global.util;
 
+import bigmac.urlmodifierbackend.domain.user.model.User;
+import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.annotation.Nullable;
 import jakarta.servlet.FilterChain;
@@ -7,11 +9,11 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -21,7 +23,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
-    private final UserDetailsService customUserDetailsService;
+    private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -60,14 +62,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         // 인증정보가 없고 userEmail 존재하면 인증처리 진행
         if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            // UserDetailsService에서 유저 정보 로드
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
+            // UserRepository에서 유저 정보 로드
+            User user = userRepository.findByEmail(userEmail)
+                .orElse(null);
 
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                userDetails, null, userDetails.getAuthorities());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+            if (user != null) {
+                // User 엔티티를 Authentication에 설정
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                    user, null, Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-            SecurityContextHolder.getContext().setAuthentication(authToken);
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+            }
         }
 
         // 다음 필터 체인 계속 진행

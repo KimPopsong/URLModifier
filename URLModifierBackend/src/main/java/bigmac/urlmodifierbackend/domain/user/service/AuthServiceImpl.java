@@ -61,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
 
         user.setId(idGenerator.nextId());  // snowflake 활용 id 생성
         user.setEmail(userRegisterRequest.getEmail());
+        user.setNickName(userRegisterRequest.getNickName());
         user.setPassword(passwordEncoder.encode(userRegisterRequest.getPassword()));
 
         userRepository.save(user);

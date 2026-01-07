@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.lang.Nullable;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,7 +45,7 @@ public class URLController {
      * @return 생성된 단축 URL과 QR 코드
      */
     @PostMapping("/short-urls")
-    public ResponseEntity<URLResponse> makeURLShort(@AuthenticationPrincipal User user,
+    public ResponseEntity<URLResponse> makeURLShort(@AuthenticationPrincipal @Nullable User user,
         @RequestBody URLRequest urlRequest) {
         URL url = urlService.makeURLShort(user, urlRequest.getUrl());
 

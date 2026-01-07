@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -48,12 +49,12 @@ public class URLServiceImpl implements URLService {
      * 주어진 URL이 DB에 있는지 확인 후 있다면 DB에 있는 값 반환. 없다면 단축 후 DB 저장 및 반환
      *
      * @param originURL 기본 URL
-     * @param user      사용자
+     * @param user      사용자 (nullable)
      * @return 단축된 URL
      */
     @Transactional
     @Override
-    public URL makeURLShort(User user, String originURL) {
+    public URL makeURLShort(@Nullable User user, String originURL) {
         Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
 
         if (findByOriginURL.isPresent())  // 이미 같은 URL이 DB에 있다면 계산하지 말고 반환
