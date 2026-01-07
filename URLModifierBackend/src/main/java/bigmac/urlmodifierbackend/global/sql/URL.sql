@@ -17,10 +17,6 @@ CREATE TABLE IF NOT EXISTS public.url
 (
     id
 ),
-    CONSTRAINT url_origin_url_key UNIQUE
-(
-    origin_url
-),
     CONSTRAINT url_shortened_url_key UNIQUE
 (
     shortened_url

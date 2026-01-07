@@ -28,7 +28,7 @@ public class URL {
     @JoinColumn(name = "users", nullable = true)
     private User user;
 
-    @Column(name = "origin_url", nullable = false, unique = true, columnDefinition = "TEXT")
+    @Column(name = "origin_url", nullable = false, columnDefinition = "TEXT")
     private String originURL;
 
     @Column(name = "shortened_url", nullable = false, unique = true, length = 30)

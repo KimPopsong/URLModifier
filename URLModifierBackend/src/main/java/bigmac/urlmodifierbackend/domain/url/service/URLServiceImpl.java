@@ -72,7 +72,9 @@ public class URLServiceImpl implements URLService {
                 shortenedURL = Base62.encode(id);
             } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
 
-            String qrCodeBase64 = generateQRCode(originURL);
+            // 단축 URL을 기반으로 QR 코드 생성 (통계 수집을 위해)
+            String fullShortenedURL = BE_BASE_URL + shortenedURL;
+            String qrCodeBase64 = generateQRCode(fullShortenedURL);
 
             URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
 
@@ -92,22 +94,35 @@ public class URLServiceImpl implements URLService {
         this.checkUser(user);
         urlValidateService.validateOriginalUrl(customURLRequest.getOriginURL());
 
+        // 사용자가 이미 같은 originURL로 커스텀 URL을 만들었는지 확인
+        Optional<URL> existingCustomURL = urlRepository.findByUserAndOriginURL(user,
+            customURLRequest.getOriginURL());
+        if (existingCustomURL.isPresent()) {
+            throw new URLException("이미 해당 URL로 커스텀 URL을 생성하셨습니다.");
+        }
+
+        // 커스텀 단축 URL이 이미 사용 중인지 확인
         Optional<URL> shortenedURL = urlRepository.findByShortenedURL(
             customURLRequest.getCustomURL());
 
         if (shortenedURL.isPresent()) {  // 이미 생성된 url이 있다면
             throw new URLException("이미 존재하는 단축 URL입니다.");
-        } else if (customURLRequest.getCustomURL().length() >= 31
-            || customURLRequest.getCustomURL().length() <= 5) {  // 글자 길이 제한
-            throw new URLException("단축 URL의 길이가 올바르지 않습니다.");
-        } else {  // 생성된 customURL이 없다면
-            String qrCodeBase64 = generateQRCode(customURLRequest.getOriginURL());
-
-            URL newUrl = new URL(idGenerator.nextId(), user, customURLRequest.getOriginURL(),
-                customURLRequest.getCustomURL(), qrCodeBase64);
-
-            return urlRepository.save(newUrl);
         }
+        
+        // 커스텀 URL 길이 검증 (1~30자)
+        int customURLLength = customURLRequest.getCustomURL().length();
+        if (customURLLength < 1 || customURLLength > 30) {
+            throw new URLException("커스텀 URL은 1자 이상 30자 이하여야 합니다. (현재: " + customURLLength + "자)");
+        }
+        
+        // 단축 URL을 기반으로 QR 코드 생성 (통계 수집을 위해)
+        String fullShortenedURL = BE_BASE_URL + customURLRequest.getCustomURL();
+        String qrCodeBase64 = generateQRCode(fullShortenedURL);
+
+        URL newUrl = new URL(idGenerator.nextId(), user, customURLRequest.getOriginURL(),
+            customURLRequest.getCustomURL(), qrCodeBase64);
+
+        return urlRepository.save(newUrl);
     }
 
     /**
@@ -192,19 +207,19 @@ public class URLServiceImpl implements URLService {
     /**
      * QR코드 생성
      *
-     * @param originURL 원본 URL
+     * @param url QR 코드로 변환할 URL (단축 URL 또는 전체 URL)
      * @return QR코드 Base64
      */
-    private static String generateQRCode(String originURL) {
+    private String generateQRCode(String url) {
         String qrCodeBase64 = "";
 
         try  // QR코드 이미지 생성
         {
-            byte[] qrImage = QRCodeUtil.generateQRCodeImage(originURL, 200, 200);
+            byte[] qrImage = QRCodeUtil.generateQRCodeImage(url, 200, 200);
             qrCodeBase64 = Base64.getEncoder().encodeToString(qrImage);
         } catch (Exception e) {
-            log.error("단축 URL 생성 중 오류 발생: {}", originURL, e);
-            throw new URLException("단축 URL 생성간 오류가 발생하였습니다.");
+            log.error("QR 코드 생성 중 오류 발생: {}", url, e);
+            throw new URLException("QR 코드 생성 중 오류가 발생하였습니다.");
         }
         return qrCodeBase64;
     }

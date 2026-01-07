@@ -39,8 +39,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(URLException.class)
     public ResponseEntity<ErrorResponse> handleURLException(URLException e) {
         log.error("URL error: {}", e.getMessage(), e);
-        ErrorResponse response = new ErrorResponse("URL_MAKE_FAIL", 
-            "URL 단축 중 오류가 발생했습니다. 다시 시도해주세요.");
+        String message = e.getMessage();
+        if (message == null || message.isBlank()) {
+            // URLException인데 메시지가 비어 있는 예외적인 경우에만 일반 메시지 사용
+            message = "URL 단축 중 오류가 발생했습니다. 다시 시도해주세요.";
+        }
+
+        ErrorResponse response = new ErrorResponse("URL_MAKE_FAIL", message);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

@@ -231,7 +231,7 @@
                       <h3>URL 통계</h3>
                       <button
                         class="btn-ghost small"
-                        @click="selectedUrlDetail = null"
+                        @click="closeUrlDetail"
                       >
                         닫기
                       </button>
@@ -256,6 +256,13 @@
                       <p class="detail-value">
                         {{ selectedUrlDetail.clickEventList?.length || 0 }}회
                       </p>
+
+                      <!-- 시간대별 접속량 그래프 -->
+                      <div v-if="selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0" class="chart-container">
+                        <p class="detail-label">시간대별 접속량</p>
+                        <canvas ref="chartCanvas"></canvas>
+                        <p class="chart-hint">마우스 휠로 확대/축소 가능</p>
+                      </div>
                     </div>
                   </div>
                 </transition>
@@ -413,6 +420,11 @@
 
 <script>
 import axios from 'axios';
+import { Chart, registerables } from 'chart.js';
+import zoomPlugin from 'chartjs-plugin-zoom';
+
+Chart.register(...registerables);
+Chart.register(zoomPlugin);
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
 
@@ -456,7 +468,8 @@ export default {
       myPage: null,
       myPageLoading: false,
       myPageError: '',
-      selectedUrlDetail: null
+      selectedUrlDetail: null,
+      chartInstance: null
     };
   },
   computed: {
@@ -711,11 +724,22 @@ export default {
     async showUrlDetail(url) {
       if (!this.isLoggedIn) return;
       this.selectedUrlDetail = null;
+      // 기존 차트 인스턴스 제거
+      if (this.chartInstance) {
+        this.chartInstance.destroy();
+        this.chartInstance = null;
+      }
       try {
         const res = await axios.get(`${API_BASE_URL}/urls/${url.id}`, {
           headers: this.authHeaders()
         });
         this.selectedUrlDetail = res.data;
+        // 차트 생성은 nextTick에서 수행
+        this.$nextTick(() => {
+          if (this.selectedUrlDetail?.clickEventList?.length > 0) {
+            this.createChart();
+          }
+        });
       } catch (err) {
         console.error('URL detail error:', err);
         this.myPageError = this.getSafeErrorMessage(
@@ -723,6 +747,14 @@ export default {
           'URL 통계를 불러오는 데 실패했습니다.'
         );
       }
+    },
+
+    closeUrlDetail() {
+      if (this.chartInstance) {
+        this.chartInstance.destroy();
+        this.chartInstance = null;
+      }
+      this.selectedUrlDetail = null;
     },
 
     async deleteUrl(url) {
@@ -738,7 +770,7 @@ export default {
           this.myPage.urls = this.myPage.urls.filter((u) => u.id !== url.id);
         }
         if (this.selectedUrlDetail && this.selectedUrlDetail.id === url.id) {
-          this.selectedUrlDetail = null;
+          this.closeUrlDetail();
         }
       } catch (err) {
         console.error('Delete URL error:', err);
@@ -759,6 +791,141 @@ export default {
       } catch {
         return value;
       }
+    },
+
+    createChart() {
+      if (!this.$refs.chartCanvas || !this.selectedUrlDetail?.clickEventList) return;
+
+      // 기존 차트 제거
+      if (this.chartInstance) {
+        this.chartInstance.destroy();
+      }
+
+      const clickEvents = this.selectedUrlDetail.clickEventList;
+      
+      // 시간대별로 그룹화 (시간 단위)
+      const timeMap = new Map();
+      
+      clickEvents.forEach(event => {
+        const date = new Date(event.clickedAt);
+        // 시간 단위로 그룹화 (YYYY-MM-DD HH:00 형식)
+        const timeKey = new Date(date.getFullYear(), date.getMonth(), date.getDate(), date.getHours()).getTime();
+        timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + 1);
+      });
+
+      // 시간순으로 정렬
+      const sortedTimes = Array.from(timeMap.keys()).sort((a, b) => a - b);
+      const labels = sortedTimes.map(time => {
+        const d = new Date(time);
+        return d.toLocaleString('ko-KR', { 
+          month: 'short', 
+          day: 'numeric', 
+          hour: '2-digit',
+          hour12: false
+        });
+      });
+      const data = sortedTimes.map(time => timeMap.get(time));
+
+      const ctx = this.$refs.chartCanvas.getContext('2d');
+      this.chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: '접속량',
+            data: data,
+            borderColor: '#818cf8',
+            backgroundColor: 'rgba(129, 140, 248, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: '#818cf8',
+            pointBorderColor: '#ffffff',
+            pointBorderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              backgroundColor: 'rgba(15, 23, 42, 0.95)',
+              titleColor: '#e5e7eb',
+              bodyColor: '#e5e7eb',
+              borderColor: 'rgba(148, 163, 184, 0.5)',
+              borderWidth: 1,
+              padding: 12,
+              displayColors: false
+            },
+            zoom: {
+              zoom: {
+                wheel: {
+                  enabled: true,
+                  speed: 0.1
+                },
+                pinch: {
+                  enabled: true
+                },
+                mode: 'x'
+              },
+              pan: {
+                enabled: true,
+                mode: 'x'
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: {
+                display: true,
+                text: '시간대',
+                color: '#9ca3af',
+                font: {
+                  size: 12
+                }
+              },
+              ticks: {
+                color: '#9ca3af',
+                maxRotation: 45,
+                minRotation: 45
+              },
+              grid: {
+                color: 'rgba(148, 163, 184, 0.2)'
+              }
+            },
+            y: {
+              title: {
+                display: true,
+                text: '접속량',
+                color: '#9ca3af',
+                font: {
+                  size: 12
+                }
+              },
+              ticks: {
+                color: '#9ca3af',
+                stepSize: 1,
+                beginAtZero: true
+              },
+              grid: {
+                color: 'rgba(148, 163, 184, 0.2)'
+              }
+            }
+          }
+        }
+      });
+    }
+  },
+  beforeUnmount() {
+    // 컴포넌트가 언마운트될 때 차트 인스턴스 제거
+    if (this.chartInstance) {
+      this.chartInstance.destroy();
+      this.chartInstance = null;
     }
   }
 };
@@ -1347,6 +1514,25 @@ export default {
 
 .detail-value {
   margin-bottom: 0.35rem;
+}
+
+.chart-container {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.chart-container canvas {
+  max-height: 300px;
+  width: 100% !important;
+  height: 300px !important;
+}
+
+.chart-hint {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: #6b7280;
+  text-align: center;
 }
 
 .empty-state,
