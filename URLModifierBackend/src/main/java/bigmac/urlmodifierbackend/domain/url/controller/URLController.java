@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * URL 단축 및 리디렉션 요청을 처리하는 컨트롤러
@@ -65,6 +66,11 @@ public class URLController {
     @PostMapping("/short-urls/custom")
     public ResponseEntity<URLResponse> makeCustomURL(@AuthenticationPrincipal User user,
         @RequestBody CustomURLRequest customURLRequest) {
+        // 로그인하지 않은 사용자가 커스텀 URL을 만들려는 경우 체크
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "커스텀 URL을 사용하려면 로그인이 필요합니다.");
+        }
+        
         URL url = urlService.makeCustomURL(user, customURLRequest);
 
         return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(

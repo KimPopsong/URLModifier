@@ -77,13 +77,13 @@
               </div>
 
               <div class="advanced-options">
-                <label class="checkbox">
+                <label class="checkbox" :class="{ disabled: !isLoggedIn }">
                   <input
                     type="checkbox"
                     v-model="useCustomUrl"
                     :disabled="!isLoggedIn"
                   />
-                  <span>커스텀 URL 사용 (로그인 필요)</span>
+                  <span :class="{ 'text-muted': !isLoggedIn }">커스텀 URL 사용 (로그인 필요)</span>
                 </label>
 
                 <transition name="fade">
@@ -546,9 +546,14 @@ export default {
             { headers: this.authHeaders() }
           );
         } else {
-          response = await axios.post(`${API_BASE_URL}/short-urls`, {
-            url: this.originalUrl.trim()
-          });
+          // 로그인한 사용자가 일반 URL을 만들 때도 인증 헤더 전송
+          response = await axios.post(
+            `${API_BASE_URL}/short-urls`,
+            {
+              url: this.originalUrl.trim()
+            },
+            { headers: this.authHeaders() }
+          );
         }
 
         this.shortenedUrl = response.data.shortenedUrl;
@@ -1164,8 +1169,22 @@ export default {
   cursor: pointer;
 }
 
+.checkbox.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .checkbox input {
   accent-color: #6366f1;
+}
+
+.checkbox input:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.text-muted {
+  color: #6b7280;
 }
 
 .custom-input-group {

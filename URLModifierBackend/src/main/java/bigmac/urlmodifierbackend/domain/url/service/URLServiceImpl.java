@@ -55,13 +55,8 @@ public class URLServiceImpl implements URLService {
     @Transactional
     @Override
     public URL makeURLShort(@Nullable User user, String originURL) {
-        Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
-
-        if (findByOriginURL.isPresent())  // 이미 같은 URL이 DB에 있다면 계산하지 말고 반환
-        {
-            return findByOriginURL.get();
-        } else  // 단축 URL 생성
-        {
+        // 로그인한 사용자가 일반 URL을 만들 때는 항상 새로 생성 (마이페이지에서 관리하기 위해)
+        if (user != null) {
             urlValidateService.validateOriginalUrl(originURL);
 
             long id = idGenerator.nextId();
@@ -80,6 +75,38 @@ public class URLServiceImpl implements URLService {
 
             return urlRepository.save(newUrl);
         }
+
+        // 비로그인 사용자는 user가 null인 기존 URL만 재사용
+        // 로그인한 사용자의 URL이 있으면 새로 생성해야 함
+        Optional<URL> findByOriginURL = urlRepository.findByOriginURL(originURL);
+
+        if (findByOriginURL.isPresent()) {
+            URL existingUrl = findByOriginURL.get();
+            // 기존 URL의 user가 null인 경우에만 재사용 (비로그인 사용자가 만든 URL)
+            if (existingUrl.getUser() == null) {
+                return existingUrl;
+            }
+            // 로그인한 사용자의 URL이면 새로 생성 (user를 null로)
+        }
+
+        // 새로 생성 (비로그인 사용자는 user가 null)
+        urlValidateService.validateOriginalUrl(originURL);
+
+        long id = idGenerator.nextId();
+        String shortenedURL;
+
+        // 겹치지 않는 URL 생성
+        do {
+            shortenedURL = Base62.encode(id);
+        } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
+
+        // 단축 URL을 기반으로 QR 코드 생성 (통계 수집을 위해)
+        String fullShortenedURL = BE_BASE_URL + shortenedURL;
+        String qrCodeBase64 = generateQRCode(fullShortenedURL);
+
+        URL newUrl = new URL(id, null, originURL, shortenedURL, qrCodeBase64);
+
+        return urlRepository.save(newUrl);
     }
 
     /**
