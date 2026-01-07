@@ -225,47 +225,6 @@
                 </div>
 
                 <!-- 통계 패널 -->
-                <transition name="slide-up">
-                  <div v-if="selectedUrlDetail" class="detail-panel">
-                    <div class="detail-header">
-                      <h3>URL 통계</h3>
-                      <button
-                        class="btn-ghost small"
-                        @click="closeUrlDetail"
-                      >
-                        닫기
-                      </button>
-                    </div>
-                    <div class="detail-body">
-                      <p class="detail-label">원본 URL</p>
-                      <p class="detail-value">
-                        {{ selectedUrlDetail.originURL }}
-                      </p>
-
-                      <p class="detail-label">단축 URL</p>
-                      <p class="detail-value">
-                        {{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}
-                      </p>
-
-                      <p class="detail-label">생성 일시</p>
-                      <p class="detail-value">
-                        {{ formatDateTime(selectedUrlDetail.createdAt) }}
-                      </p>
-
-                      <p class="detail-label">총 클릭 수</p>
-                      <p class="detail-value">
-                        {{ selectedUrlDetail.clickEventList?.length || 0 }}회
-                      </p>
-
-                      <!-- 시간대별 접속량 그래프 -->
-                      <div v-if="selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0" class="chart-container">
-                        <p class="detail-label">시간대별 접속량</p>
-                        <canvas ref="chartCanvas"></canvas>
-                        <p class="chart-hint">마우스 휠로 확대/축소 가능</p>
-                      </div>
-                    </div>
-                  </div>
-                </transition>
               </div>
 
               <div v-else class="empty-state">
@@ -278,8 +237,8 @@
           </div>
         </section>
 
-        <!-- 우측: 소개 섹션 -->
-        <aside class="card side-card">
+        <!-- 우측: 소개 / 통계 패널 -->
+        <aside class="card side-card" v-if="activeTab === 'shorten'">
           <div class="card-body">
             <h2 class="side-title">URL Modifier를 더 잘 활용하는 법</h2>
             <ul class="feature-list">
@@ -296,6 +255,48 @@
                 <p>각 링크별 클릭 이력(클릭 수, 시간 정보 등)을 통해 어느 링크가 인기 있는지 확인해 보세요.</p>
               </li>
             </ul>
+          </div>
+        </aside>
+
+        <aside class="card side-card" v-else-if="activeTab === 'mypage'">
+          <div class="card-body">
+            <div class="card-header-row">
+              <div>
+                <h2 class="side-title">URL 통계</h2>
+                <p class="card-description">
+                  좌측 목록에서 통계를 확인할 URL을 선택하세요.
+                </p>
+              </div>
+              <button
+                class="btn-ghost small"
+                v-if="selectedUrlDetail"
+                @click="closeUrlDetail"
+              >
+                닫기
+              </button>
+            </div>
+
+            <div v-if="selectedUrlDetail">
+              <p class="detail-label">원본 URL</p>
+              <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
+
+              <p class="detail-label">단축 URL</p>
+              <p class="detail-value">{{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}</p>
+
+              <p class="detail-label">생성 일시</p>
+              <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
+
+              <p class="detail-label">총 클릭 수</p>
+              <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
+
+              <div v-if="selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0" class="chart-container">
+                <canvas ref="chartCanvas"></canvas>
+                <p class="chart-hint">마우스 휠로 확대/축소 가능</p>
+              </div>
+            </div>
+            <div v-else class="empty-state" style="margin-top: 1rem;">
+              <p>좌측 목록에서 통계를 볼 URL을 선택하세요.</p>
+            </div>
           </div>
         </aside>
       </div>
@@ -413,7 +414,7 @@
     </transition>
 
     <footer class="app-footer">
-      <p>&copy; 2025 URL Modifier · Built with Spring Boot &amp; Vue 3</p>
+      <p>&copy; {{ new Date().getFullYear() }} URL Modifier · kimds5344@naver.com</p>
     </footer>
   </div>
 </template>
@@ -888,7 +889,7 @@ export default {
             x: {
               title: {
                 display: true,
-                text: '시간대',
+                text: '시간',
                 color: '#9ca3af',
                 font: {
                   size: 12
@@ -941,16 +942,17 @@ export default {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(circle at top left, #8ec5fc 0%, #e0c3fc 30%, #131627 100%);
+  background: linear-gradient(180deg, #eef2f6 0%, #e8edf3 50%, #e5ebf2 100%);
 }
 
 .app-header {
   position: sticky;
   top: 0;
   z-index: 10;
-  background: rgba(10, 10, 25, 0.85);
+  background: #ffffff;
   backdrop-filter: blur(18px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-inner {
@@ -980,13 +982,13 @@ export default {
 }
 
 .brand-title {
-  color: #ffffff;
+  color: #1f2937;
   font-weight: 600;
   letter-spacing: 0.02em;
 }
 
 .brand-subtitle {
-  color: rgba(255, 255, 255, 0.7);
+  color: #6b7280;
   font-size: 0.8rem;
 }
 
@@ -998,7 +1000,7 @@ export default {
 .nav-item {
   border: none;
   background: transparent;
-  color: rgba(255, 255, 255, 0.8);
+  color: #6b7280;
   padding: 0.45rem 0.9rem;
   border-radius: 999px;
   font-size: 0.9rem;
@@ -1007,7 +1009,7 @@ export default {
 }
 
 .nav-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.05);
   transform: translateY(-1px);
 }
 
@@ -1027,8 +1029,8 @@ export default {
   gap: 0.5rem;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.3);
-  color: #ffffff;
+  background: #f3f4f6;
+  color: #111827;
   font-size: 0.85rem;
 }
 
@@ -1042,9 +1044,9 @@ export default {
 .btn-ghost {
   border-radius: 999px;
   padding: 0.4rem 0.9rem;
-  border: 1px solid rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   background: transparent;
-  color: #ffffff;
+  color: #111827;
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1056,7 +1058,7 @@ export default {
 }
 
 .btn-ghost:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .app-main {
@@ -1072,14 +1074,15 @@ export default {
   display: grid;
   grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1.1fr);
   gap: 1.75rem;
+  align-items: stretch;
 }
 
 .card {
-  background: rgba(15, 23, 42, 0.92);
+  background: #ffffff;
   border-radius: 18px;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.28);
-  color: #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: #1f2937;
 }
 
 .main-card {
@@ -1087,7 +1090,15 @@ export default {
 }
 
 .side-card {
-  align-self: flex-start;
+  align-self: stretch;
+  height: 100%;
+}
+.side-card .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0.75rem;
+  color: #111827;
 }
 
 .card-body {
@@ -1097,13 +1108,13 @@ export default {
 .card-title {
   font-size: 1.4rem;
   font-weight: 600;
-  color: #f9fafb;
+  color: #1f2937;
   margin-bottom: 0.4rem;
 }
 
 .card-description {
   font-size: 0.9rem;
-  color: #9ca3af;
+  color: #6b7280;
   margin-bottom: 1.75rem;
 }
 
@@ -1121,7 +1132,7 @@ export default {
 .field-label {
   display: block;
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #6b7280;
   margin-bottom: 0.4rem;
 }
 
@@ -1133,11 +1144,11 @@ export default {
 .url-input {
   flex: 1;
   padding: 0.9rem 1.2rem;
-  border: 1px solid rgba(148, 163, 184, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 10px;
   font-size: 0.95rem;
-  background: rgba(15, 23, 42, 0.85);
-  color: #f9fafb;
+  background: #ffffff;
+  color: #1f2937;
   outline: none;
   transition: all 0.2s ease;
 }
@@ -1165,7 +1176,7 @@ export default {
   align-items: center;
   gap: 0.45rem;
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #6b7280;
   cursor: pointer;
 }
 
@@ -1192,15 +1203,15 @@ export default {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.7);
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.2);
   border-radius: 10px;
   padding: 0.55rem 0.8rem;
 }
 
 .prefix {
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: #6b7280;
   white-space: nowrap;
 }
 
@@ -1208,7 +1219,7 @@ export default {
   flex: 1;
   border: none;
   background: transparent;
-  color: #f9fafb;
+  color: #1f2937;
   font-size: 0.9rem;
   outline: none;
 }
@@ -1249,9 +1260,9 @@ export default {
 .btn-outline {
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  border: 1px solid rgba(148, 163, 184, 0.9);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   background: transparent;
-  color: #e5e7eb;
+  color: #1f2937;
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1262,15 +1273,15 @@ export default {
 }
 
 .btn-outline:hover {
-  background: rgba(148, 163, 184, 0.18);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 .btn-danger {
   border-radius: 999px;
   padding: 0.35rem 0.85rem;
-  border: 1px solid rgba(239, 68, 68, 0.9);
-  background: rgba(127, 29, 29, 0.8);
-  color: #fee2e2;
+  border: 1px solid #ef4444;
+  background: #fee2e2;
+  color: #b91c1c;
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1281,7 +1292,7 @@ export default {
 }
 
 .btn-danger:hover {
-  background: rgba(185, 28, 28, 0.9);
+  background: #fecdd3;
 }
 
 .spinner {
@@ -1528,23 +1539,26 @@ export default {
 
 .detail-label {
   font-size: 0.78rem;
-  color: #9ca3af;
+  color: #374151;
 }
 
 .detail-value {
   margin-bottom: 0.35rem;
+  color: #111827;
 }
 
 .chart-container {
   margin-top: 1.5rem;
   padding-top: 1.5rem;
   border-top: 1px solid rgba(148, 163, 184, 0.3);
+  width: 100%;
+  max-width: 100%;
 }
 
 .chart-container canvas {
-  max-height: 300px;
+  max-height: 500px;
   width: 100% !important;
-  height: 300px !important;
+  height: 500px !important;
 }
 
 .chart-hint {
@@ -1665,7 +1679,7 @@ export default {
 .app-footer {
   padding: 1.1rem 1.5rem 1.4rem;
   text-align: center;
-  color: rgba(209, 213, 219, 0.9);
+  color: #6b7280;
   font-size: 0.8rem;
 }
 
