@@ -1,0 +1,47 @@
+# IDE - Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# IDE - IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE - VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# IDE - Eclipse
+.classpath
+.project
+.settings/
+bin/
+!gradle/wrapper/gradle-wrapper.jar
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build
+build/
+target/
+*.class
+*.jar
+*.war
+*.ear
+
+# Logs
+*.log
+
+# Environment
+.env
+.env.local
+
