@@ -849,7 +849,7 @@ export default {
             pointHoverRadius: 5,
             pointBackgroundColor: '#818cf8',
             pointBorderColor: '#ffffff',
-            pointBorderWidth: 2
+            pointBorderWidth: 1
           }]
         },
         options: {
@@ -860,10 +860,10 @@ export default {
               display: false
             },
             tooltip: {
-              backgroundColor: 'rgba(15, 23, 42, 0.95)',
-              titleColor: '#e5e7eb',
-              bodyColor: '#e5e7eb',
-              borderColor: 'rgba(148, 163, 184, 0.5)',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              titleColor: '#1f2937',
+              bodyColor: '#374151',
+              borderColor: 'rgba(0, 0, 0, 0.1)',
               borderWidth: 1,
               padding: 12,
               displayColors: false
@@ -1339,13 +1339,13 @@ export default {
 .result-header h3 {
   font-size: 1.05rem;
   font-weight: 600;
-  color: #e5e7eb;
+  color: #1f2937;
   margin-bottom: 0.25rem;
 }
 
 .result-sub {
   font-size: 0.85rem;
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .result-content {
@@ -1359,15 +1359,15 @@ export default {
   display: flex;
   gap: 0.75rem;
   align-items: center;
-  background: rgba(15, 23, 42, 0.9);
+  background: #f9fafb;
   padding: 0.85rem 0.95rem;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .shortened-url {
   flex: 1;
-  color: #a5b4fc;
+  color: #4f46e5;
   text-decoration: none;
   font-weight: 500;
   word-break: break-all;
@@ -1375,7 +1375,7 @@ export default {
 }
 
 .shortened-url:hover {
-  color: #c4b5fd;
+  color: #6366f1;
   text-decoration: underline;
 }
 
@@ -1405,9 +1405,9 @@ export default {
   display: flex;
   justify-content: center;
   padding: 0.9rem;
-  background: rgba(15, 23, 42, 0.92);
+  background: #f9fafb;
   border-radius: 10px;
-  border: 1px dashed rgba(148, 163, 184, 0.6);
+  border: 1px dashed rgba(0, 0, 0, 0.15);
 }
 
 .qr-code {
@@ -1420,7 +1420,7 @@ export default {
   font-size: 1.1rem;
   font-weight: 600;
   margin-bottom: 1rem;
-  color: #e5e7eb;
+  color: #1f2937;
 }
 
 .feature-list {
@@ -1437,11 +1437,11 @@ export default {
   font-size: 0.95rem;
   font-weight: 600;
   margin-bottom: 0.25rem;
-  color: #e5e7eb;
+  color: #1f2937;
 }
 
 .feature-list p {
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .profile-summary {
@@ -1455,7 +1455,7 @@ export default {
 
 .profile-summary p {
   font-size: 0.9rem;
-  color: #9ca3af;
+  color: #6b7280;
 }
 
 .profile-summary .muted {
@@ -1475,8 +1475,8 @@ export default {
   gap: 0.75rem;
   padding: 0.8rem 0.95rem;
   border-radius: 10px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.5);
+  background: #f9fafb;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .url-main {
@@ -1488,19 +1488,20 @@ export default {
   display: block;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #a5b4fc;
+  color: #4f46e5;
   text-decoration: none;
   word-break: break-all;
 }
 
 .url-short:hover {
+  color: #6366f1;
   text-decoration: underline;
 }
 
 .url-origin {
   margin-top: 0.15rem;
   font-size: 0.8rem;
-  color: #9ca3af;
+  color: #6b7280;
   word-break: break-all;
 }
 
@@ -1531,7 +1532,7 @@ export default {
 
 .detail-body {
   font-size: 0.82rem;
-  color: #d1d5db;
+  color: #374151;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 0.35rem;
@@ -1573,11 +1574,11 @@ export default {
   margin-top: 2rem;
   padding: 1.25rem;
   border-radius: 12px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px dashed rgba(148, 163, 184, 0.6);
+  background: #f9fafb;
+  border: 1px dashed rgba(0, 0, 0, 0.15);
   text-align: center;
   font-size: 0.9rem;
-  color: #9ca3af;
+  color: #6b7280;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1593,7 +1594,7 @@ export default {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1603,12 +1604,12 @@ export default {
 .modal {
   width: 100%;
   max-width: 420px;
-  background: rgba(15, 23, 42, 0.97);
+  background: #ffffff;
   border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   padding: 1.4rem 1.6rem 1.6rem;
-  color: #e5e7eb;
-  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.9);
+  color: #1f2937;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.2);
 }
 
 .modal-header {
@@ -1620,6 +1621,7 @@ export default {
 
 .modal-header h2 {
   font-size: 1.1rem;
+  color: #1f2937;
 }
 
 .modal-tabs {
@@ -1628,15 +1630,15 @@ export default {
   margin-bottom: 0.8rem;
   padding: 0.25rem;
   border-radius: 999px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(55, 65, 81, 0.9);
+  background: #f3f4f6;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .modal-tab {
   flex: 1;
   border: none;
   background: transparent;
-  color: #9ca3af;
+  color: #6b7280;
   font-size: 0.85rem;
   padding: 0.4rem 0;
   border-radius: 999px;
@@ -1659,16 +1661,16 @@ export default {
 .text-input {
   width: 100%;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.2);
   padding: 0.6rem 0.85rem;
   font-size: 0.9rem;
-  background: rgba(15, 23, 42, 0.9);
-  color: #e5e7eb;
+  background: #ffffff;
+  color: #1f2937;
   outline: none;
 }
 
 .text-input::placeholder {
-  color: #6b7280;
+  color: rgba(148, 163, 184, 0.8);
 }
 
 .text-input:focus {
