@@ -47,6 +47,10 @@ URLModifierBackend
     - `shortened_url` (VARCHAR): 단축된 URL (Base62 인코딩)
     - `qr_code` (VARCHAR): QR 코드 이미지 (Base64 인코딩된 문자열)
 
+## 트러블슈팅
+
+DB 연결 오류, WSL/Docker 포트 충돌 등은 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)를 참고하세요.
+
 ## API
 
 ### `POST /short-urls`
