@@ -239,13 +239,13 @@
             <div v-if="selectedUrlDetail">
               <p class="detail-label">원본 URL</p>
               <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
-
+              <br>
               <p class="detail-label">단축 URL</p>
               <p class="detail-value">{{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}</p>
-
+              <br>
               <p class="detail-label">생성 일시</p>
               <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
-
+              <br>
               <p class="detail-label">총 클릭 수</p>
               <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
 
@@ -826,11 +826,11 @@ export default {
                 pinch: {
                   enabled: true,
                 },
-                mode: 'x',
+                mode: 'xy',
               },
               pan: {
                 enabled: true,
-                mode: 'x',
+                mode: 'xy',
               },
             },
           },
@@ -1494,6 +1494,7 @@ export default {
 .detail-label {
   font-size: 0.78rem;
   color: #374151;
+  font-weight: bold;
 }
 
 .detail-value {
