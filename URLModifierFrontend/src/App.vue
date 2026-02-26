@@ -38,10 +38,15 @@
 
     <!-- 메인 콘텐츠 -->
     <main class="app-main">
-      <div class="content-grid content-half">
-        <!-- 좌측: URL 단축 카드 -->
-        <section class="card main-card" v-if="activeTab === 'shorten'">
-          <div class="card-body">
+      <div
+        class="content-grid"
+        :class="
+          activeTab === 'shorten' ? 'show-side' : selectedUrlDetail ? 'show-side' : 'hide-side'
+        "
+      >
+        <section class="card main-card">
+          <!-- 좌측: URL 단축 카드 -->
+          <div class="card-body" v-if="activeTab === 'shorten'">
             <h2 class="card-title">URL 단축하기</h2>
             <p class="card-description">
               긴 링크를 짧고 기억하기 쉬운 링크로 바꾸고, QR 코드까지 한 번에 생성해 보세요.
@@ -121,11 +126,8 @@
               </div>
             </transition>
           </div>
-        </section>
-
-        <!-- 마이페이지 -->
-        <section class="card main-card" v-if="activeTab === 'mypage'">
-          <div class="card-body">
+          <!-- 마이페이지 -->
+          <div class="card-body" v-if="activeTab === 'mypage'">
             <div class="card-header-row">
               <div>
                 <h2 class="card-title">마이페이지</h2>
@@ -194,74 +196,78 @@
         </section>
 
         <!-- 우측: 소개 / 통계 패널 -->
-        <aside class="card side-card" v-if="activeTab === 'shorten'">
-          <div class="card-body">
-            <h2 class="side-title">URL Modifier를 더 잘 활용하는 법</h2>
-            <ul class="feature-list">
-              <li>
-                <h3>✨ 단축 &amp; QR 코드</h3>
-                <p>
-                  링크를 단축하면 QR 코드가 자동으로 생성되어 오프라인에서도 쉽게 공유할 수 있어요.
-                </p>
-              </li>
-              <li>
-                <h3>👤 마이페이지 관리</h3>
-                <p>
-                  로그인 후 내가 만든 모든 링크를 한 번에 관리하고, 필요 없는 링크는 즉시 삭제할 수
-                  있습니다.
-                </p>
-              </li>
-              <li>
-                <h3>📊 간단 통계</h3>
-                <p>
-                  각 링크별 클릭 이력(클릭 수, 시간 정보 등)을 통해 어느 링크가 인기 있는지 확인해
-                  보세요.
-                </p>
-              </li>
-            </ul>
-          </div>
-        </aside>
-
-        <aside id="mypage-card" class="card side-card side-hide" v-else-if="activeTab === 'mypage'">
-          <div class="card-body">
-            <div class="card-header-row">
-              <div>
-                <h2 class="side-title">URL 통계</h2>
-                <p class="card-description">좌측 목록에서 통계를 확인할 URL을 선택하세요.</p>
+        <transition name="slide-pane">
+          <aside class="card side-card" v-if="activeTab === 'shorten'">
+            <div class="card-body">
+              <h2 class="side-title">URL Modifier를 더 잘 활용하는 법</h2>
+              <ul class="feature-list">
+                <li>
+                  <h3>✨ 단축 &amp; QR 코드</h3>
+                  <p>
+                    링크를 단축하면 QR 코드가 자동으로 생성되어 오프라인에서도 쉽게 공유할 수
+                    있어요.
+                  </p>
+                </li>
+                <li>
+                  <h3>👤 마이페이지 관리</h3>
+                  <p>
+                    로그인 후 내가 만든 모든 링크를 한 번에 관리하고, 필요 없는 링크는 즉시 삭제할
+                    수 있습니다.
+                  </p>
+                </li>
+                <li>
+                  <h3>📊 간단 통계</h3>
+                  <p>
+                    각 링크별 클릭 이력(클릭 수, 시간 정보 등)을 통해 어느 링크가 인기 있는지 확인해
+                    보세요.
+                  </p>
+                </li>
+              </ul>
+            </div>
+          </aside>
+          <aside class="card side-card" v-else-if="activeTab === 'mypage' && selectedUrlDetail">
+            <div class="card-body">
+              <div class="card-header-row">
+                <div>
+                  <h2 class="side-title">URL 통계</h2>
+                  <p class="card-description">좌측 목록에서 통계를 확인할 URL을 선택하세요.</p>
+                </div>
+                <button class="btn-ghost small" v-if="selectedUrlDetail" @click="closeUrlDetail">
+                  닫기
+                </button>
               </div>
-              <button class="btn-ghost small" v-if="selectedUrlDetail" @click="closeUrlDetail">
-                닫기
-              </button>
-            </div>
 
-            <div v-if="selectedUrlDetail">
-              <p class="detail-label">원본 URL</p>
-              <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
-              <br />
-              <p class="detail-label">단축 URL</p>
-              <p class="detail-value">{{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}</p>
-              <br />
-              <p class="detail-label">생성 일시</p>
-              <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
-              <br />
-              <p class="detail-label">총 클릭 수</p>
-              <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
+              <div v-if="selectedUrlDetail">
+                <p class="detail-label">원본 URL</p>
+                <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
+                <br />
+                <p class="detail-label">단축 URL</p>
+                <p class="detail-value">
+                  {{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}
+                </p>
+                <br />
+                <p class="detail-label">생성 일시</p>
+                <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
+                <br />
+                <p class="detail-label">총 클릭 수</p>
+                <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
 
-              <div
-                v-if="
-                  selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0
-                "
-                class="chart-container"
-              >
-                <canvas ref="chartCanvas"></canvas>
-                <p class="chart-hint">마우스 휠로 확대/축소 가능</p>
+                <div
+                  v-if="
+                    selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0
+                  "
+                  class="chart-container"
+                >
+                  <canvas ref="chartCanvas"></canvas>
+                  <p class="chart-hint">마우스 휠로 확대/축소 가능</p>
+                </div>
+              </div>
+              <div v-else class="empty-state" style="margin-top: 1rem">
+                <p>좌측 목록에서 통계를 볼 URL을 선택하세요.</p>
               </div>
             </div>
-            <div v-else class="empty-state" style="margin-top: 1rem">
-              <p>좌측 목록에서 통계를 볼 URL을 선택하세요.</p>
-            </div>
-          </div>
-        </aside>
+          </aside>
+        </transition>
       </div>
     </main>
 
@@ -641,7 +647,6 @@ export default {
 
     openShorten() {
       this.activeTab = 'shorten'
-      document.querySelector('.content-grid').classList.add('content-half')
     },
 
     // ===== 마이페이지 =====
@@ -682,7 +687,6 @@ export default {
 
     async showUrlDetail(url) {
       document.querySelector('.content-grid').classList.add('content-half')
-      document.querySelector('#mypage-card').classList.remove('side-hide')
 
       if (!this.isLoggedIn) return
       this.selectedUrlDetail = null
@@ -710,7 +714,6 @@ export default {
 
     closeUrlDetail() {
       document.querySelector('.content-grid').classList.remove('content-half')
-      document.querySelector('#mypage-card').classList.add('side-hide')
 
       if (this.chartInstance) {
         this.chartInstance.destroy()
@@ -1034,13 +1037,11 @@ export default {
 }
 
 .content-grid {
+  display: flex;
   width: 100%;
   max-width: 1120px;
-  display: grid;
-  gap: 0;
-  grid-template-columns: 1fr 0fr;
-  align-items: stretch;
-  transition: grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1), gap 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  gap: 20px;
+  position: relative;
 }
 
 .content-half {
@@ -1050,10 +1051,13 @@ export default {
 
 .side-hide {
   opacity: 0;
-  transform: translateX(-50px) scale(0.95);
+  transform: translateX(-100px);
   pointer-events: none;
   visibility: hidden;
-  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.4s;
+  transition:
+    opacity 1s linear,
+    transform 1s linear,
+    visibility 0s linear 1s;
 }
 
 .card {
@@ -1065,20 +1069,18 @@ export default {
 }
 
 .main-card {
-  min-height: 420px;
-  position: relative;
-  z-index: 10;
+  flex: 1.5;
+  z-index: 2; /* 사이드 카드보다 위에 위치 */
   background: #ffffff;
+  min-height: 500px;
 }
 
 .side-card {
-  align-self: stretch;
-  height: 100%;
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-  overflow: hidden;
-  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  flex: 0 0 320px;
+  z-index: 1; /* 메인 카드 뒤로 배치 */
+  min-width: 320px;
+  background: #ffffff;
+  transform-origin: left center;
 }
 .side-card .card-body {
   display: flex;
@@ -1086,6 +1088,7 @@ export default {
   height: 100%;
   gap: 0.75rem;
   color: #111827;
+  min-width: 260px;
 }
 
 .card-body {
@@ -1678,7 +1681,6 @@ export default {
   margin: 0;
 }
 
-/* 트랜지션 */
 .fade-enter-active,
 .fade-leave-active {
   transition: opacity 0.25s ease;
@@ -1754,5 +1756,37 @@ export default {
     width: 100%;
     text-align: center;
   }
+
+  /* 반응형 유지 */
+  @media (max-width: 900px) {
+    .content-grid {
+      flex-direction: column;
+    }
+    .side-card {
+      margin-left: 0 !important;
+      transform: translateY(-20px);
+    }
+  }
+}
+
+/* 슬라이드 애니메이션 */
+.slide-pane-enter-active,
+.slide-pane-leave-active {
+  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 나타날 때: 왼쪽(메인카드 뒤)에서 오른쪽으로 밀려나옴 */
+.slide-pane-enter-from {
+  opacity: 0;
+  transform: translateX(-50%) scale(0.95);
+  margin-left: -340px; /* 고정된 너비(320px) + 부모의 gap(20px) */
+}
+
+/* 사라질 때: 다시 메인카드 뒤로 들어가며 투명해짐 */
+.slide-pane-leave-to {
+  opacity: 0;
+  transform: translateX(-30%) scale(0.95);
+  margin-left: -340px;
 }
 </style>
