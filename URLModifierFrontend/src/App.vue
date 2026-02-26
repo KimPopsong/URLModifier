@@ -38,12 +38,7 @@
 
     <!-- 메인 콘텐츠 -->
     <main class="app-main">
-      <div
-        class="content-grid"
-        :class="
-          activeTab === 'shorten' ? 'show-side' : selectedUrlDetail ? 'show-side' : 'hide-side'
-        "
-      >
+      <div class="content-grid" :class="{ 'mypage-detail-view': activeTab === 'mypage' && selectedUrlDetail }">
         <section class="card main-card">
           <!-- 좌측: URL 단축 카드 -->
           <div class="card-body" v-if="activeTab === 'shorten'">
@@ -196,7 +191,7 @@
         </section>
 
         <!-- 우측: 소개 / 통계 패널 -->
-        <transition name="slide-pane">
+        <transition :name="transitionName">
           <aside class="card side-card" v-if="activeTab === 'shorten'">
             <div class="card-body">
               <h2 class="side-title">URL Modifier를 더 잘 활용하는 법</h2>
@@ -430,6 +425,10 @@ export default {
     isLoggedIn() {
       return !!this.accessToken
     },
+    transitionName() {
+      // 마이페이지에서는 flex 기반의 다른 애니메이션을 적용
+      return this.activeTab === 'mypage' ? 'slide-pane-flex' : 'slide-pane'
+    },
   },
   created() {
     // 로컬 스토리지에 저장된 토큰/유저 복구
@@ -652,7 +651,6 @@ export default {
     // ===== 마이페이지 =====
     async openMyPage() {
       this.activeTab = 'mypage'
-      document.querySelector('.content-grid').classList.remove('content-half')
 
       if (this.isLoggedIn && !this.myPage) {
         await this.fetchMyPage()
@@ -686,8 +684,6 @@ export default {
     },
 
     async showUrlDetail(url) {
-      document.querySelector('.content-grid').classList.add('content-half')
-
       if (!this.isLoggedIn) return
       this.selectedUrlDetail = null
       // 기존 차트 인스턴스 제거
@@ -713,8 +709,6 @@ export default {
     },
 
     closeUrlDetail() {
-      document.querySelector('.content-grid').classList.remove('content-half')
-
       if (this.chartInstance) {
         this.chartInstance.destroy()
         this.chartInstance = null
@@ -902,7 +896,7 @@ export default {
 
 <style scoped>
 .app-container {
-  min-height: 100vh;
+  height: 100vh; /* 전체 높이를 화면에 고정 */
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, #eef2f6 0%, #e8edf3 50%, #e5ebf2 100%);
@@ -1034,30 +1028,16 @@ export default {
   padding: 2.5rem 1.5rem 2rem;
   display: flex;
   justify-content: center;
+  overflow: hidden; /* 메인 영역 밖으로 스크롤 생기는 것 방지 */
 }
 
 .content-grid {
   display: flex;
   width: 100%;
   max-width: 1120px;
+  height: 100%; /* 높이를 꽉 채움 */
   gap: 20px;
   position: relative;
-}
-
-.content-half {
-  grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1.1fr);
-  gap: 1.75rem;
-}
-
-.side-hide {
-  opacity: 0;
-  transform: translateX(-100px);
-  pointer-events: none;
-  visibility: hidden;
-  transition:
-    opacity 1s linear,
-    transform 1s linear,
-    visibility 0s linear 1s;
 }
 
 .card {
@@ -1072,7 +1052,9 @@ export default {
   flex: 1.5;
   z-index: 2; /* 사이드 카드보다 위에 위치 */
   background: #ffffff;
-  min-height: 500px;
+  height: 100%; /* 높이 고정 */
+  overflow-y: auto; /* 내부 스크롤 */
+  transition: flex 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .side-card {
@@ -1081,15 +1063,27 @@ export default {
   min-width: 320px;
   background: #ffffff;
   transform-origin: left center;
+  height: 100%; /* 높이 고정 */
+  overflow-y: auto; /* 내부 스크롤 */
+  transition: flex 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .side-card .card-body {
   display: flex;
   flex-direction: column;
-  height: 100%;
+  min-height: 100%; /* 내용이 많으면 늘어나도록 수정 */
   gap: 0.75rem;
   color: #111827;
   min-width: 260px;
 }
+
+.content-grid.mypage-detail-view .main-card {
+  flex: 0 0 400px;
+}
+
+.content-grid.mypage-detail-view .side-card {
+  flex: 1 1 0;
+}
+
 
 .card-body {
   padding: 1.75rem 1.9rem 1.9rem;
@@ -1256,6 +1250,7 @@ export default {
   font-size: 0.8rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .btn-outline.small {
@@ -1788,5 +1783,36 @@ export default {
   opacity: 0;
   transform: translateX(-30%) scale(0.95);
   margin-left: -340px;
+}
+
+/* 마이페이지용 슬라이드 애니메이션 */
+.slide-pane-flex-enter-active,
+.slide-pane-flex-leave-active {
+  transition:
+    flex 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.4s ease-in-out;
+  overflow: hidden;
+}
+
+.slide-pane-flex-enter-from,
+.slide-pane-flex-leave-to {
+  flex: 0 0 0px;
+  min-width: 0 !important; /* 애니메이션을 위해 일시적으로 min-width 무시 */
+  opacity: 0;
+}
+
+/* 카드 내부 커스텀 스크롤바 */
+.main-card::-webkit-scrollbar,
+.side-card::-webkit-scrollbar {
+  width: 6px;
+}
+.main-card::-webkit-scrollbar-track,
+.side-card::-webkit-scrollbar-track {
+  background: transparent;
+}
+.main-card::-webkit-scrollbar-thumb,
+.side-card::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
 }
 </style>
