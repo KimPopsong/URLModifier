@@ -3,7 +3,7 @@
     <!-- 헤더 / 내비게이션 -->
     <header class="app-header">
       <div class="header-inner">
-        <div class="brand" @click="activeTab = 'shorten'">
+        <div class="brand" @click="openShorten()">
           <span class="brand-icon">🔗</span>
           <div class="brand-text">
             <span class="brand-title">URL Modifier</span>
@@ -15,7 +15,7 @@
           <button
             class="nav-item"
             :class="{ active: activeTab === 'shorten' }"
-            @click="activeTab = 'shorten'"
+            @click="openShorten()"
           >
             URL 단축
           </button>
@@ -38,7 +38,7 @@
 
     <!-- 메인 콘텐츠 -->
     <main class="app-main">
-      <div class="content-grid">
+      <div class="content-grid content-half">
         <!-- 좌측: URL 단축 카드 -->
         <section class="card main-card" v-if="activeTab === 'shorten'">
           <div class="card-body">
@@ -187,9 +187,7 @@
 
               <div v-else class="empty-state">
                 <p>아직 생성한 단축 URL이 없습니다.</p>
-                <button class="btn-submit" @click="activeTab = 'shorten'">
-                  첫 URL 만들러 가기
-                </button>
+                <button class="btn-submit" @click="openShorten()">첫 URL 만들러 가기</button>
               </div>
             </template>
           </div>
@@ -224,7 +222,7 @@
           </div>
         </aside>
 
-        <aside class="card side-card" v-else-if="activeTab === 'mypage'">
+        <aside id="mypage-card" class="card side-card side-hide" v-else-if="activeTab === 'mypage'">
           <div class="card-body">
             <div class="card-header-row">
               <div>
@@ -239,13 +237,13 @@
             <div v-if="selectedUrlDetail">
               <p class="detail-label">원본 URL</p>
               <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
-              <br>
+              <br />
               <p class="detail-label">단축 URL</p>
               <p class="detail-value">{{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}</p>
-              <br>
+              <br />
               <p class="detail-label">생성 일시</p>
               <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
-              <br>
+              <br />
               <p class="detail-label">총 클릭 수</p>
               <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
 
@@ -641,9 +639,16 @@ export default {
       }
     },
 
+    openShorten() {
+      this.activeTab = 'shorten'
+      document.querySelector('.content-grid').classList.add('content-half')
+    },
+
     // ===== 마이페이지 =====
     async openMyPage() {
       this.activeTab = 'mypage'
+      document.querySelector('.content-grid').classList.remove('content-half')
+
       if (this.isLoggedIn && !this.myPage) {
         await this.fetchMyPage()
       }
@@ -676,6 +681,9 @@ export default {
     },
 
     async showUrlDetail(url) {
+      document.querySelector('.content-grid').classList.add('content-half')
+      document.querySelector('#mypage-card').classList.remove('side-hide')
+
       if (!this.isLoggedIn) return
       this.selectedUrlDetail = null
       // 기존 차트 인스턴스 제거
@@ -701,6 +709,9 @@ export default {
     },
 
     closeUrlDetail() {
+      document.querySelector('.content-grid').classList.remove('content-half')
+      document.querySelector('#mypage-card').classList.add('side-hide')
+
       if (this.chartInstance) {
         this.chartInstance.destroy()
         this.chartInstance = null
@@ -892,6 +903,7 @@ export default {
   display: flex;
   flex-direction: column;
   background: linear-gradient(180deg, #eef2f6 0%, #e8edf3 50%, #e5ebf2 100%);
+  overflow: hidden;
 }
 
 .app-header {
@@ -1025,9 +1037,23 @@ export default {
   width: 100%;
   max-width: 1120px;
   display: grid;
+  gap: 0;
+  grid-template-columns: 1fr 0fr;
+  align-items: stretch;
+  transition: grid-template-columns 0.5s cubic-bezier(0.4, 0, 0.2, 1), gap 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.content-half {
   grid-template-columns: minmax(0, 2.1fr) minmax(260px, 1.1fr);
   gap: 1.75rem;
-  align-items: stretch;
+}
+
+.side-hide {
+  opacity: 0;
+  transform: translateX(-50px) scale(0.95);
+  pointer-events: none;
+  visibility: hidden;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), visibility 0s linear 0.4s;
 }
 
 .card {
@@ -1040,11 +1066,19 @@ export default {
 
 .main-card {
   min-height: 420px;
+  position: relative;
+  z-index: 10;
+  background: #ffffff;
 }
 
 .side-card {
   align-self: stretch;
   height: 100%;
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  overflow: hidden;
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .side-card .card-body {
   display: flex;
