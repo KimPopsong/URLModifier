@@ -41,153 +41,155 @@
       <div class="content-grid" :class="{ 'mypage-detail-view': activeTab === 'mypage' && selectedUrlDetail }">
         <section class="card main-card">
           <!-- 좌측: URL 단축 카드 -->
-          <div class="card-body" v-if="activeTab === 'shorten'">
-            <h2 class="card-title">URL 단축하기</h2>
-            <p class="card-description">
-              긴 링크를 짧고 기억하기 쉬운 링크로 바꾸고, QR 코드까지 한 번에 생성해 보세요.
-            </p>
+          <transition name="content-fade" mode="out-in">
+            <div class="card-body" v-if="activeTab === 'shorten'" key="shorten-view">
+              <h2 class="card-title">URL 단축하기</h2>
+              <p class="card-description">
+                긴 링크를 짧고 기억하기 쉬운 링크로 바꾸고, QR 코드까지 한 번에 생성해 보세요.
+              </p>
 
-            <form @submit.prevent="shortenUrl" class="url-form">
-              <label class="field-label">원본 URL</label>
-              <div class="input-group">
-                <input
-                  v-model="originalUrl"
-                  type="url"
-                  placeholder="https://example.com/very/long/url..."
-                  required
-                  class="url-input"
-                  :disabled="loading"
-                />
-                <button type="submit" class="btn-submit" :disabled="loading || !originalUrl">
-                  <span v-if="loading" class="spinner"></span>
-                  <span>{{ loading ? '단축 중...' : 'URL 단축' }}</span>
-                </button>
-              </div>
-
-              <div class="advanced-options">
-                <label class="checkbox" :class="{ disabled: !isLoggedIn }">
-                  <input type="checkbox" v-model="useCustomUrl" :disabled="!isLoggedIn" />
-                  <span :class="{ 'text-muted': !isLoggedIn }">커스텀 URL 사용 (로그인 필요)</span>
-                </label>
-
-                <transition name="fade">
-                  <div v-if="useCustomUrl" class="custom-input-group">
-                    <span class="prefix">{{ backendBaseUrl }}/</span>
-                    <input
-                      v-model="customSlug"
-                      type="text"
-                      placeholder="원하는 별칭 (예: my-link)"
-                      class="custom-input"
-                      :disabled="loading"
-                    />
-                  </div>
-                </transition>
-              </div>
-            </form>
-
-            <transition name="fade">
-              <div v-if="error" class="alert alert-error">
-                <span class="alert-icon">⚠️</span>
-                <span>{{ error }}</span>
-              </div>
-            </transition>
-
-            <transition name="slide-up">
-              <div v-if="shortenedUrl" class="result">
-                <div class="result-header">
-                  <h3>생성된 단축 URL</h3>
-                  <p class="result-sub">
-                    아래 링크를 클릭해 이동하거나, 복사해서 바로 공유해 보세요.
-                  </p>
+              <form @submit.prevent="shortenUrl" class="url-form">
+                <label class="field-label">원본 URL</label>
+                <div class="input-group">
+                  <input
+                    v-model="originalUrl"
+                    type="url"
+                    placeholder="https://example.com/very/long/url..."
+                    required
+                    class="url-input"
+                    :disabled="loading"
+                  />
+                  <button type="submit" class="btn-submit" :disabled="loading || !originalUrl">
+                    <span v-if="loading" class="spinner"></span>
+                    <span>{{ loading ? '단축 중...' : 'URL 단축' }}</span>
+                  </button>
                 </div>
-                <div class="result-content">
-                  <div class="shortened-url-container">
-                    <a
-                      :href="shortenedUrl"
-                      target="_blank"
-                      class="shortened-url"
-                      rel="noopener noreferrer"
-                    >
-                      {{ shortenedUrl }}
-                    </a>
-                    <button @click="copyToClipboard" class="btn-copy" :class="{ copied: isCopied }">
-                      {{ isCopied ? '✓ 복사됨' : '복사' }}
-                    </button>
-                  </div>
-                  <div v-if="qrCode" class="qr-container">
-                    <img :src="qrCode" alt="QR Code" class="qr-code" />
-                  </div>
+
+                <div class="advanced-options">
+                  <label class="checkbox" :class="{ disabled: !isLoggedIn }">
+                    <input type="checkbox" v-model="useCustomUrl" :disabled="!isLoggedIn" />
+                    <span :class="{ 'text-muted': !isLoggedIn }">커스텀 URL 사용 (로그인 필요)</span>
+                  </label>
+
+                  <transition name="fade">
+                    <div v-if="useCustomUrl" class="custom-input-group">
+                      <span class="prefix">{{ backendBaseUrl }}/</span>
+                      <input
+                        v-model="customSlug"
+                        type="text"
+                        placeholder="원하는 별칭 (예: my-link)"
+                        class="custom-input"
+                        :disabled="loading"
+                      />
+                    </div>
+                  </transition>
                 </div>
-              </div>
-            </transition>
-          </div>
-          <!-- 마이페이지 -->
-          <div class="card-body" v-if="activeTab === 'mypage'">
-            <div class="card-header-row">
-              <div>
-                <h2 class="card-title">마이페이지</h2>
-                <p class="card-description">
-                  내가 생성한 단축 URL 목록과 간단한 통계를 확인할 수 있어요.
-                </p>
-              </div>
-              <button class="btn-outline small" @click="fetchMyPage" :disabled="myPageLoading">
-                {{ myPageLoading ? '새로고침 중...' : '새로고침' }}
-              </button>
-            </div>
+              </form>
 
-            <div v-if="!isLoggedIn" class="empty-state">
-              <p>마이페이지를 보려면 로그인이 필요합니다.</p>
-              <button class="btn-submit" @click="openAuthModal('login')">로그인 하러 가기</button>
-            </div>
-
-            <template v-else>
               <transition name="fade">
-                <div v-if="myPageError" class="alert alert-error">
+                <div v-if="error" class="alert alert-error">
                   <span class="alert-icon">⚠️</span>
-                  <span>{{ myPageError }}</span>
+                  <span>{{ error }}</span>
                 </div>
               </transition>
 
-              <div v-if="myPageLoading" class="loading-state">
-                <span class="spinner"></span>
-                <span>마이페이지 정보를 불러오는 중입니다...</span>
-              </div>
-
-              <div v-else-if="myPage && myPage.urls && myPage.urls.length">
-                <div class="profile-summary">
-                  <h3>{{ myPage.nickname || myPage.email }}</h3>
-                  <p>{{ myPage.email }}</p>
-                  <p class="muted">총 {{ myPage.urls.length }}개의 단축 URL을 관리 중입니다.</p>
-                </div>
-
-                <div class="url-list">
-                  <div v-for="url in myPage.urls" :key="url.id" class="url-item">
-                    <div class="url-main">
+              <transition name="slide-up">
+                <div v-if="shortenedUrl" class="result">
+                  <div class="result-header">
+                    <h3>생성된 단축 URL</h3>
+                    <p class="result-sub">
+                      아래 링크를 클릭해 이동하거나, 복사해서 바로 공유해 보세요.
+                    </p>
+                  </div>
+                  <div class="result-content">
+                    <div class="shortened-url-container">
                       <a
-                        :href="backendBaseUrl + '/' + url.shortenedUrl.split('/').pop()"
+                        :href="shortenedUrl"
                         target="_blank"
-                        class="url-short"
+                        class="shortened-url"
+                        rel="noopener noreferrer"
                       >
-                        {{ url.shortenedUrl }}
+                        {{ shortenedUrl }}
                       </a>
-                      <p class="url-origin">{{ url.originUrl }}</p>
+                      <button @click="copyToClipboard" class="btn-copy" :class="{ copied: isCopied }">
+                        {{ isCopied ? '✓ 복사됨' : '복사' }}
+                      </button>
                     </div>
-                    <div class="url-actions">
-                      <button class="btn-outline small" @click="showUrlDetail(url)">통계</button>
-                      <button class="btn-danger small" @click="deleteUrl(url)">삭제</button>
+                    <div v-if="qrCode" class="qr-container">
+                      <img :src="qrCode" alt="QR Code" class="qr-code" />
                     </div>
                   </div>
                 </div>
-
-                <!-- 통계 패널 -->
+              </transition>
+            </div>
+            <!-- 마이페이지 -->
+            <div class="card-body" v-else-if="activeTab === 'mypage'" key="mypage-view">
+              <div class="card-header-row">
+                <div>
+                  <h2 class="card-title">마이페이지</h2>
+                  <p class="card-description">
+                    내가 생성한 단축 URL 목록과 간단한 통계를 확인할 수 있어요.
+                  </p>
+                </div>
+                <button class="btn-outline small" @click="fetchMyPage" :disabled="myPageLoading">
+                  {{ myPageLoading ? '새로고침 중...' : '새로고침' }}
+                </button>
               </div>
 
-              <div v-else class="empty-state">
-                <p>아직 생성한 단축 URL이 없습니다.</p>
-                <button class="btn-submit" @click="openShorten()">첫 URL 만들러 가기</button>
+              <div v-if="!isLoggedIn" class="empty-state">
+                <p>마이페이지를 보려면 로그인이 필요합니다.</p>
+                <button class="btn-submit" @click="openAuthModal('login')">로그인 하러 가기</button>
               </div>
-            </template>
-          </div>
+
+              <template v-else>
+                <transition name="fade">
+                  <div v-if="myPageError" class="alert alert-error">
+                    <span class="alert-icon">⚠️</span>
+                    <span>{{ myPageError }}</span>
+                  </div>
+                </transition>
+
+                <div v-if="myPageLoading" class="loading-state">
+                  <span class="spinner"></span>
+                  <span>마이페이지 정보를 불러오는 중입니다...</span>
+                </div>
+
+                <div v-else-if="myPage && myPage.urls && myPage.urls.length">
+                  <div class="profile-summary">
+                    <h3>{{ myPage.nickname || myPage.email }}</h3>
+                    <p>{{ myPage.email }}</p>
+                    <p class="muted">총 {{ myPage.urls.length }}개의 단축 URL을 관리 중입니다.</p>
+                  </div>
+
+                  <div class="url-list">
+                    <div v-for="url in myPage.urls" :key="url.id" class="url-item">
+                      <div class="url-main">
+                        <a
+                          :href="backendBaseUrl + '/' + url.shortenedUrl.split('/').pop()"
+                          target="_blank"
+                          class="url-short"
+                        >
+                          {{ url.shortenedUrl }}
+                        </a>
+                        <p class="url-origin">{{ url.originUrl }}</p>
+                      </div>
+                      <div class="url-actions">
+                        <button class="btn-outline small" @click="showUrlDetail(url)">통계</button>
+                        <button class="btn-danger small" @click="deleteUrl(url)">삭제</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- 통계 패널 -->
+                </div>
+
+                <div v-else class="empty-state">
+                  <p>아직 생성한 단축 URL이 없습니다.</p>
+                  <button class="btn-submit" @click="openShorten()">첫 URL 만들러 가기</button>
+                </div>
+              </template>
+            </div>
+          </transition>
         </section>
 
         <!-- 우측: 소개 / 통계 패널 -->
@@ -826,6 +828,9 @@ export default {
               displayColors: false,
             },
             zoom: {
+              limits: {
+                y: { min: 0 },
+              },
               zoom: {
                 wheel: {
                   enabled: true,
@@ -874,6 +879,7 @@ export default {
                 color: '#9ca3af',
                 stepSize: 1,
                 beginAtZero: true,
+                precision: 0,
               },
               grid: {
                 color: 'rgba(148, 163, 184, 0.2)',
@@ -1065,7 +1071,7 @@ export default {
   transform-origin: left center;
   height: 100%; /* 높이 고정 */
   overflow-y: auto; /* 내부 스크롤 */
-  transition: flex 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  /* flex 전환은 main-card의 자체 규칙과 transition 컴포넌트가 각각 담당하므로, 기본 스타일에서 제거합니다. */
 }
 .side-card .card-body {
   display: flex;
@@ -1798,6 +1804,18 @@ export default {
 .slide-pane-flex-leave-to {
   flex: 0 0 0px;
   min-width: 0 !important; /* 애니메이션을 위해 일시적으로 min-width 무시 */
+  opacity: 0;
+  margin-left: -20px;
+}
+
+/* 메인 콘텐츠 페이드 전환 */
+.content-fade-enter-active,
+.content-fade-leave-active {
+  transition: opacity 0.15s ease-in-out;
+}
+
+.content-fade-enter-from,
+.content-fade-leave-to {
   opacity: 0;
 }
 
