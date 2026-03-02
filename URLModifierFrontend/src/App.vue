@@ -766,28 +766,40 @@ export default {
 
       clickEvents.forEach((event) => {
         const date = new Date(event.clickedAt)
-        // 시간 단위로 그룹화 (YYYY-MM-DD HH:00 형식)
+        // 일 단위로 그룹화 (YYYY-MM-DD)
         const timeKey = new Date(
           date.getFullYear(),
           date.getMonth(),
           date.getDate(),
-          date.getHours(),
         ).getTime()
         timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + 1)
       })
 
-      // 시간순으로 정렬
-      const sortedTimes = Array.from(timeMap.keys()).sort((a, b) => a - b)
-      const labels = sortedTimes.map((time) => {
-        const d = new Date(time)
-        return d.toLocaleString('ko-KR', {
-          month: 'short',
-          day: 'numeric',
-          hour: '2-digit',
-          hour12: false,
-        })
-      })
-      const data = sortedTimes.map((time) => timeMap.get(time))
+      // 최소/최대 날짜 구하기
+      const times = Array.from(timeMap.keys())
+      if (times.length === 0) return
+
+      const minTime = Math.min(...times)
+      const maxTime = Math.max(...times)
+
+      const labels = []
+      const data = []
+
+      // 빈 날짜 채우기 (시작일 ~ 종료일)
+      const currentDate = new Date(minTime)
+      const endDate = new Date(maxTime)
+
+      while (currentDate <= endDate) {
+        const timeKey = currentDate.getTime()
+        labels.push(
+          currentDate.toLocaleString('ko-KR', {
+            month: 'short',
+            day: 'numeric',
+          }),
+        )
+        data.push(timeMap.get(timeKey) || 0)
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
 
       const ctx = this.$refs.chartCanvas.getContext('2d')
       this.chartInstance = new Chart(ctx, {
@@ -851,7 +863,7 @@ export default {
             x: {
               title: {
                 display: true,
-                text: '시간',
+                text: '날짜',
                 color: '#9ca3af',
                 font: {
                   size: 12,
