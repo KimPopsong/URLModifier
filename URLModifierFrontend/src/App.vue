@@ -38,7 +38,10 @@
 
     <!-- 메인 콘텐츠 -->
     <main class="app-main">
-      <div class="content-grid" :class="{ 'mypage-detail-view': activeTab === 'mypage' && selectedUrlDetail }">
+      <div
+        class="content-grid"
+        :class="{ 'mypage-detail-view': activeTab === 'mypage' && selectedUrlDetail }"
+      >
         <section class="card main-card">
           <!-- 좌측: URL 단축 카드 -->
           <transition name="content-fade" mode="out-in">
@@ -68,7 +71,9 @@
                 <div class="advanced-options">
                   <label class="checkbox" :class="{ disabled: !isLoggedIn }">
                     <input type="checkbox" v-model="useCustomUrl" :disabled="!isLoggedIn" />
-                    <span :class="{ 'text-muted': !isLoggedIn }">커스텀 URL 사용 (로그인 필요)</span>
+                    <span :class="{ 'text-muted': !isLoggedIn }"
+                      >커스텀 URL 사용 (로그인 필요)</span
+                    >
                   </label>
 
                   <transition name="fade">
@@ -111,7 +116,11 @@
                       >
                         {{ shortenedUrl }}
                       </a>
-                      <button @click="copyToClipboard" class="btn-copy" :class="{ copied: isCopied }">
+                      <button
+                        @click="copyToClipboard"
+                        class="btn-copy"
+                        :class="{ copied: isCopied }"
+                      >
                         {{ isCopied ? '✓ 복사됨' : '복사' }}
                       </button>
                     </div>
@@ -165,9 +174,9 @@
                     <div v-for="url in myPage.urls" :key="url.id" class="url-item">
                       <div class="url-main">
                         <a
-                          :href="backendBaseUrl + '/' + url.shortenedUrl.split('/').pop()"
-                          target="_blank"
+                          href="javascript:void(0)"
                           class="url-short"
+                          @click="clickUrl(url)"
                         >
                           {{ url.shortenedUrl }}
                         </a>
@@ -685,6 +694,10 @@ export default {
       }
     },
 
+    clickUrl(url) {
+      navigator.clipboard.writeText(API_BASE_URL + '/' + url.shortenedUrl);
+    },
+
     async showUrlDetail(url) {
       if (!this.isLoggedIn) return
       this.selectedUrlDetail = null
@@ -767,11 +780,7 @@ export default {
       clickEvents.forEach((event) => {
         const date = new Date(event.clickedAt)
         // 일 단위로 그룹화 (YYYY-MM-DD)
-        const timeKey = new Date(
-          date.getFullYear(),
-          date.getMonth(),
-          date.getDate(),
-        ).getTime()
+        const timeKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
         timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + 1)
       })
 
@@ -1101,7 +1110,6 @@ export default {
 .content-grid.mypage-detail-view .side-card {
   flex: 1 1 0;
 }
-
 
 .card-body {
   padding: 1.75rem 1.9rem 1.9rem;
@@ -1785,8 +1793,10 @@ export default {
 /* 슬라이드 애니메이션 */
 .slide-pane-enter-active,
 .slide-pane-leave-active {
-  transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), margin-left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition:
+    transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+    margin-left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* 나타날 때: 왼쪽(메인카드 뒤)에서 오른쪽으로 밀려나옴 */
