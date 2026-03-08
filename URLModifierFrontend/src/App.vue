@@ -656,6 +656,7 @@ export default {
     },
 
     openShorten() {
+      this.selectedUrlDetail = false
       this.activeTab = 'shorten'
     },
 
