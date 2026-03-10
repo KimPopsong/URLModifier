@@ -388,6 +388,46 @@ Chart.register(zoomPlugin)
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
+// Axios 전역 인터셉터 설정
+// 모든 요청에 accessToken이 있으면 Authorization 헤더를 자동으로 추가
+// 응답에서 401(만료) 발생 시 localStorage 토큰/유저 정보를 제거
+axios.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken')
+
+    if (token) {
+      config.headers = config.headers || {}
+
+      if (!config.headers.Authorization) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
+    }
+    
+    return config
+  },
+  (error) => Promise.reject(error),
+)
+
+axios.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    const status = error?.response?.status
+    const message = error?.response?.data?.message
+
+    // 백엔드에서 만료된 토큰에 대해 401 + "Access token expired"를 내려줌
+    if (status === 401 && typeof message === 'string' && message.includes('Access token expired')) {
+      localStorage.removeItem('user')
+      localStorage.removeItem('accessToken')
+      localStorage.removeItem('refreshToken')
+
+      // 새로고침하여 App.created()에서 더 이상 토큰을 복구하지 않도록 함
+      window.location.reload()
+    }
+
+    return Promise.reject(error)
+  },
+)
+
 export default {
   name: 'App',
   data() {
@@ -504,23 +544,15 @@ export default {
             return
           }
 
-          response = await axios.post(
-            `${API_BASE_URL}/short-urls/custom`,
-            {
-              originURL: this.originalUrl.trim(),
-              customURL: this.customSlug.trim(),
-            },
-            { headers: this.authHeaders() },
-          )
+          response = await axios.post(`${API_BASE_URL}/short-urls/custom`, {
+            originURL: this.originalUrl.trim(),
+            customURL: this.customSlug.trim(),
+          })
         } else {
           // 로그인한 사용자가 일반 URL을 만들 때도 인증 헤더 전송
-          response = await axios.post(
-            `${API_BASE_URL}/short-urls`,
-            {
-              url: this.originalUrl.trim(),
-            },
-            { headers: this.authHeaders() },
-          )
+          response = await axios.post(`${API_BASE_URL}/short-urls`, {
+            url: this.originalUrl.trim(),
+          })
         }
 
         this.shortenedUrl = response.data.shortenedUrl
@@ -564,12 +596,6 @@ export default {
       this.showAuthModal = false
       this.authError = ''
       this.authLoading = false
-    },
-    authHeaders() {
-      if (!this.accessToken) return {}
-      return {
-        Authorization: `Bearer ${this.accessToken}`,
-      }
     },
 
     async login() {
@@ -639,7 +665,7 @@ export default {
     async logout() {
       try {
         if (this.accessToken) {
-          await axios.post(`${API_BASE_URL}/auth/logout`, {}, { headers: this.authHeaders() })
+          await axios.post(`${API_BASE_URL}/auth/logout`)
         }
       } catch (e) {
         console.warn('Logout error (ignored):', e)
@@ -680,9 +706,7 @@ export default {
       }
       this.myPageError = ''
       try {
-        const res = await axios.get(`${API_BASE_URL}/me`, {
-          headers: this.authHeaders(),
-        })
+        const res = await axios.get(`${API_BASE_URL}/me`)
         this.myPage = res.data
       } catch (err) {
         this.myPageError = this.getSafeErrorMessage(
@@ -708,9 +732,7 @@ export default {
         this.chartInstance = null
       }
       try {
-        const res = await axios.get(`${API_BASE_URL}/urls/${url.id}`, {
-          headers: this.authHeaders(),
-        })
+        const res = await axios.get(`${API_BASE_URL}/urls/${url.id}`)
         this.selectedUrlDetail = res.data
         // 차트 생성은 nextTick에서 수행
         this.$nextTick(() => {
@@ -737,9 +759,7 @@ export default {
       if (!confirm('이 URL을 정말 삭제하시겠습니까?')) return
 
       try {
-        await axios.delete(`${API_BASE_URL}/urls/${url.id}`, {
-          headers: this.authHeaders(),
-        })
+        await axios.delete(`${API_BASE_URL}/urls/${url.id}`)
         // 목록에서 제거
         if (this.myPage && this.myPage.urls) {
           this.myPage.urls = this.myPage.urls.filter((u) => u.id !== url.id)
