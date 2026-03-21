@@ -29,7 +29,7 @@
             로그인 / 회원가입
           </button>
           <div v-else class="user-chip">
-            <span class="user-email">{{ user.email }}</span>
+            <span class="user-email">{{ user.nickName }}</span>
             <button class="btn-ghost small" @click="logout">로그아웃</button>
           </div>
         </div>
@@ -173,11 +173,7 @@
                   <div class="url-list">
                     <div v-for="url in myPage.urls" :key="url.id" class="url-item">
                       <div class="url-main">
-                        <a
-                          href="javascript:void(0)"
-                          class="url-short"
-                          @click="clickUrl(url)"
-                        >
+                        <a href="javascript:void(0)" class="url-short" @click="clickUrl(url)">
                           {{ url.shortenedUrl }}
                         </a>
                         <p class="url-origin">{{ url.originUrl }}</p>
@@ -402,7 +398,7 @@ axios.interceptors.request.use(
         config.headers.Authorization = `Bearer ${token}`
       }
     }
-    
+
     return config
   },
   (error) => Promise.reject(error),
@@ -611,6 +607,7 @@ export default {
         this.user = {
           id: data.userId,
           email: data.email,
+          nickName: data.nickName,
         }
         this.accessToken = data.jwtResponse?.accessToken || null
         this.refreshToken = data.jwtResponse?.refreshToken || null
@@ -720,7 +717,7 @@ export default {
     },
 
     clickUrl(url) {
-      navigator.clipboard.writeText(API_BASE_URL + '/' + url.shortenedUrl);
+      navigator.clipboard.writeText(API_BASE_URL + '/' + url.shortenedUrl)
     },
 
     async showUrlDetail(url) {
@@ -1038,7 +1035,6 @@ export default {
   gap: 0.5rem;
   padding: 0.35rem 0.75rem;
   border-radius: 999px;
-  background: #f3f4f6;
   color: #111827;
   font-size: 0.85rem;
 }
