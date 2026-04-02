@@ -1,6 +1,7 @@
 package bigmac.urlmodifierbackend.domain.url.service;
 
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
+import bigmac.urlmodifierbackend.domain.url.dto.response.ClickEventResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.model.ClickEvent;
@@ -229,7 +230,8 @@ public class URLServiceImpl implements URLService {
 
         this.validateUrlOwnership(user, url);
 
-        List<ClickEvent> allClickEvent = clickEventRepository.findAllByUrl(url);
+        List<ClickEventResponse> allClickEvent = clickEventRepository.findAllByUrl(url).stream()
+            .map(ClickEventResponse::from).collect(java.util.stream.Collectors.toList());
 
         return new URLDetailResponse(String.valueOf(url.getId()), url.getOriginURL(),
             url.getShortenedURL(), url.getQrCode(), url.getCreatedAt(), allClickEvent);

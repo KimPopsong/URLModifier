@@ -9,5 +9,6 @@ public class UserLoginResponse {
 
     private String userId;
     private String email;
+    private String nickName;
     private JwtResponse jwtResponse;
 }

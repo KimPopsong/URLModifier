@@ -1,6 +1,5 @@
 package bigmac.urlmodifierbackend.domain.url.dto.response;
 
-import bigmac.urlmodifierbackend.domain.url.model.ClickEvent;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.AllArgsConstructor;
@@ -17,5 +16,5 @@ public class URLDetailResponse {
     private String shortenedURL;
     private String qrCode;
     private LocalDateTime createdAt;
-    private List<ClickEvent> clickEventList;
+    private List<ClickEventResponse> clickEventList;
 }

@@ -29,7 +29,7 @@
             로그인 / 회원가입
           </button>
           <div v-else class="user-chip">
-            <span class="user-email">{{ user.email }}</span>
+            <span class="user-email">{{ user.nickName || user.email }}</span>
             <button class="btn-ghost small" @click="logout">로그아웃</button>
           </div>
         </div>
@@ -611,6 +611,7 @@ export default {
         this.user = {
           id: data.userId,
           email: data.email,
+          nickName: data.nickName,
         }
         this.accessToken = data.jwtResponse?.accessToken || null
         this.refreshToken = data.jwtResponse?.refreshToken || null

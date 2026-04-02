@@ -91,6 +91,7 @@ public class AuthServiceImpl implements AuthService {
 
             userLoginResponse.setUserId(String.valueOf(user.getId()));
             userLoginResponse.setEmail(user.getEmail());
+            userLoginResponse.setNickName(user.getNickName());
             userLoginResponse.setJwtResponse(jwtResponse);
 
             return userLoginResponse;
