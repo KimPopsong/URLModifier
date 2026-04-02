@@ -29,11 +29,7 @@
             로그인 / 회원가입
           </button>
           <div v-else class="user-chip">
-<<<<<<< HEAD
             <span class="user-email">{{ user.nickName || user.email }}</span>
-=======
-            <span class="user-email">{{ user.nickName }}</span>
->>>>>>> a22c68ea2f01bc43e54a155387edc978b0f59a2d
             <button class="btn-ghost small" @click="logout">로그아웃</button>
           </div>
         </div>
