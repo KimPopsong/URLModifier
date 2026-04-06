@@ -192,6 +192,10 @@
                   <p>아직 생성한 단축 URL이 없습니다.</p>
                   <button class="btn-submit" @click="openShorten()">첫 URL 만들러 가기</button>
                 </div>
+
+                <div v-if="!myPageLoading" class="account-section">
+                  <button class="btn-withdraw" @click="openWithdrawModal">회원 탈퇴</button>
+                </div>
               </template>
             </div>
           </transition>
@@ -368,6 +372,60 @@
       </div>
     </transition>
 
+    <transition name="fade">
+      <div v-if="showWithdrawModal" class="modal-backdrop" @click.self="closeWithdrawModal">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>회원 탈퇴</h2>
+            <button class="btn-ghost small" @click="closeWithdrawModal">✕</button>
+          </div>
+
+          <p class="withdraw-warning">
+            탈퇴하면 내 모든 단축 URL과 통계 데이터가 영구적으로 삭제됩니다.
+          </p>
+
+          <transition name="fade">
+            <div v-if="withdrawError" class="alert alert-error">
+              <span class="alert-icon">⚠️</span>
+              <span>{{ withdrawError }}</span>
+            </div>
+          </transition>
+
+          <form @submit.prevent="withdrawUser" class="auth-form">
+            <label class="field-label">비밀번호 확인</label>
+            <input
+              v-model="withdrawPassword"
+              type="password"
+              class="text-input"
+              placeholder="현재 비밀번호를 입력하세요"
+              required
+              :disabled="withdrawLoading"
+            />
+            <div class="withdraw-actions">
+              <button
+                type="button"
+                class="btn-outline"
+                style="flex: 1"
+                @click="closeWithdrawModal"
+                :disabled="withdrawLoading"
+              >
+                취소
+              </button>
+              <button
+                type="submit"
+                class="btn-danger-solid"
+                style="flex: 1"
+                :disabled="withdrawLoading || !withdrawPassword"
+              >
+                <span v-if="withdrawLoading" class="spinner spinner-dark"></span>
+                <span>{{ withdrawLoading ? '처리 중...' : '탈퇴하기' }}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </transition>
+
     <footer class="app-footer">
       <p>&copy; {{ new Date().getFullYear() }} URL Modifier · kimds5344@naver.com</p>
     </footer>
@@ -384,9 +442,14 @@ Chart.register(zoomPlugin)
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
-// Axios 전역 인터셉터 설정
-// 모든 요청에 accessToken이 있으면 Authorization 헤더를 자동으로 추가
-// 응답에서 401(만료) 발생 시 localStorage 토큰/유저 정보를 제거
+let isRefreshing = false
+
+function clearAuthStorage() {
+  localStorage.removeItem('user')
+  localStorage.removeItem('accessToken')
+  localStorage.removeItem('refreshToken')
+}
+
 axios.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('accessToken')
@@ -406,17 +469,36 @@ axios.interceptors.request.use(
 
 axios.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     const status = error?.response?.status
-    const message = error?.response?.data?.message
 
-    // 백엔드에서 만료된 토큰에 대해 401 + "Access token expired"를 내려줌
-    if (status === 401 && typeof message === 'string' && message.includes('Access token expired')) {
-      localStorage.removeItem('user')
-      localStorage.removeItem('accessToken')
-      localStorage.removeItem('refreshToken')
+    if (status === 401 && !error.config._isRetry) {
+      const storedRefresh = localStorage.getItem('refreshToken')
 
-      // 새로고침하여 App.created()에서 더 이상 토큰을 복구하지 않도록 함
+      if (storedRefresh && !isRefreshing) {
+        isRefreshing = true
+        try {
+          const res = await axios.post(
+            `${API_BASE_URL}/auth/refresh`,
+            { refreshToken: storedRefresh },
+            { _isRetry: true },
+          )
+          localStorage.setItem('accessToken', res.data.accessToken)
+          localStorage.setItem('refreshToken', res.data.refreshToken)
+
+          error.config.headers['Authorization'] = `Bearer ${res.data.accessToken}`
+          error.config._isRetry = true
+          return axios(error.config)
+        } catch {
+          clearAuthStorage()
+          window.location.reload()
+          return
+        } finally {
+          isRefreshing = false
+        }
+      }
+
+      clearAuthStorage()
       window.location.reload()
     }
 
@@ -466,6 +548,12 @@ export default {
       myPageError: '',
       selectedUrlDetail: null,
       chartInstance: null,
+
+      // 회원 탈퇴
+      showWithdrawModal: false,
+      withdrawPassword: '',
+      withdrawLoading: false,
+      withdrawError: '',
     }
   },
   computed: {
@@ -477,24 +565,49 @@ export default {
       return this.activeTab === 'mypage' ? 'slide-pane-flex' : 'slide-pane'
     },
   },
-  created() {
-    // 로컬 스토리지에 저장된 토큰/유저 복구
+  async created() {
     const storedAccess = localStorage.getItem('accessToken')
     const storedRefresh = localStorage.getItem('refreshToken')
     const storedUser = localStorage.getItem('user')
 
-    if (storedAccess && storedUser) {
+    if (!storedAccess || !storedUser) return
+
+    if (!this.isTokenExpired(storedAccess)) {
       this.accessToken = storedAccess
       this.refreshToken = storedRefresh
       this.user = JSON.parse(storedUser)
+      return
+    }
+
+    if (!storedRefresh || this.isTokenExpired(storedRefresh)) {
+      clearAuthStorage()
+      return
+    }
+
+    try {
+      const res = await axios.post(`${API_BASE_URL}/auth/refresh`, {
+        refreshToken: storedRefresh,
+      })
+      this.accessToken = res.data.accessToken
+      this.refreshToken = res.data.refreshToken
+      this.user = JSON.parse(storedUser)
+      localStorage.setItem('accessToken', this.accessToken)
+      localStorage.setItem('refreshToken', this.refreshToken)
+    } catch {
+      clearAuthStorage()
     }
   },
   methods: {
+    isTokenExpired(token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        return payload.exp * 1000 < Date.now()
+      } catch {
+        return true
+      }
+    },
+
     // ===== 유틸리티 =====
-    /**
-     * BE에서 받은 에러 메시지를 안전하게 변환
-     * 내부 시스템 정보나 민감한 정보가 노출되지 않도록 처리
-     */
     getSafeErrorMessage(
       err,
       defaultMessage = '요청 처리 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.',
@@ -670,9 +783,7 @@ export default {
         this.user = null
         this.accessToken = null
         this.refreshToken = null
-        localStorage.removeItem('user')
-        localStorage.removeItem('accessToken')
-        localStorage.removeItem('refreshToken')
+        clearAuthStorage()
         this.myPage = null
         this.selectedUrlDetail = null
       }
@@ -767,6 +878,45 @@ export default {
       } catch (err) {
         console.error('Delete URL error:', err)
         this.myPageError = this.getSafeErrorMessage(err, 'URL 삭제에 실패했습니다.')
+      }
+    },
+
+    openWithdrawModal() {
+      this.withdrawPassword = ''
+      this.withdrawError = ''
+      this.showWithdrawModal = true
+    },
+
+    closeWithdrawModal() {
+      this.showWithdrawModal = false
+      this.withdrawPassword = ''
+      this.withdrawError = ''
+      this.withdrawLoading = false
+    },
+
+    async withdrawUser() {
+      if (!this.withdrawPassword.trim()) return
+      this.withdrawLoading = true
+      this.withdrawError = ''
+      try {
+        await axios.delete(`${API_BASE_URL}/auth/withdraw`, {
+          data: { password: this.withdrawPassword },
+        })
+        this.showWithdrawModal = false
+        this.user = null
+        this.accessToken = null
+        this.refreshToken = null
+        clearAuthStorage()
+        this.myPage = null
+        this.selectedUrlDetail = null
+        this.activeTab = 'shorten'
+      } catch (err) {
+        this.withdrawError = this.getSafeErrorMessage(
+          err,
+          '회원 탈퇴에 실패했습니다. 비밀번호를 확인해 주세요.',
+        )
+      } finally {
+        this.withdrawLoading = false
       }
     },
 
@@ -1706,6 +1856,72 @@ export default {
 .text-input:focus {
   border-color: #818cf8;
   box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.7);
+}
+
+.account-section {
+  margin-top: 1.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  text-align: center;
+}
+
+.btn-withdraw {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: color 0.2s ease;
+}
+
+.btn-withdraw:hover {
+  color: #ef4444;
+  text-decoration: underline;
+}
+
+.withdraw-warning {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin-bottom: 0.75rem;
+  line-height: 1.5;
+}
+
+.withdraw-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.btn-danger-solid {
+  border-radius: 10px;
+  padding: 0.6rem 1rem;
+  border: none;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-danger-solid:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.btn-danger-solid:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spinner-dark {
+  border-color: rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
 }
 
 .app-footer {

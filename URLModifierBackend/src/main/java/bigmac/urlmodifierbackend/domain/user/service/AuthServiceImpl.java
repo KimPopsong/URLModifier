@@ -1,18 +1,21 @@
 package bigmac.urlmodifierbackend.domain.user.service;
 
+import bigmac.urlmodifierbackend.domain.url.model.URL;
+import bigmac.urlmodifierbackend.domain.url.repository.ClickEventRepository;
+import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
+import bigmac.urlmodifierbackend.domain.user.dto.request.UserWithdrawRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
+import bigmac.urlmodifierbackend.domain.user.exception.WithdrawFailException;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import bigmac.urlmodifierbackend.global.util.JwtUtil;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletRequest;
-import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -28,6 +31,8 @@ import org.springframework.web.server.ResponseStatusException;
 public class AuthServiceImpl implements AuthService {
 
     private final UserRepository userRepository;
+    private final URLRepository urlRepository;
+    private final ClickEventRepository clickEventRepository;
     private final JwtUtil jwtUtil;
     private final RedisTemplate<String, Object> redisTemplate;
     private final SnowflakeIdGenerator idGenerator;
@@ -108,20 +113,13 @@ public class AuthServiceImpl implements AuthService {
      */
     @Transactional
     @Override
-    public JwtResponse refreshToken(HttpServletRequest request) {
-        String refreshToken = Arrays.stream(
-                Optional.ofNullable(request.getCookies()).orElse(new Cookie[0]))
-            .filter(cookie -> "refresh_token".equals(cookie.getName())).map(Cookie::getValue)
-            .findFirst()
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "토큰 없음"));
-
+    public JwtResponse refreshToken(String refreshToken) {
         if (!jwtUtil.validateToken(refreshToken)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰");
         }
 
         String email = jwtUtil.getUserEmail(refreshToken);
 
-        // Redis에 저장된 refresh 토큰과 일치하는지 확인
         String storedRefreshToken = (String) redisTemplate.opsForValue().get("refresh:" + email);
 
         if (!refreshToken.equals(storedRefreshToken)) {
@@ -144,5 +142,30 @@ public class AuthServiceImpl implements AuthService {
 
         jwtUtil.addToBlackList(accessToken);
         jwtUtil.deleteRefreshToken(jwtUtil.getUserEmail(accessToken));
+    }
+
+    @Transactional
+    @Override
+    public void withdrawUser(String authorizationHeader, UserWithdrawRequest userWithdrawRequest) {
+        String accessToken = authorizationHeader.substring(7);
+        String email = jwtUtil.getUserEmail(accessToken);
+
+        User user = userRepository.findByEmail(email)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "사용자를 찾을 수 없습니다."));
+
+        if (!passwordEncoder.matches(userWithdrawRequest.getPassword(), user.getPassword())) {
+            throw new WithdrawFailException("비밀번호가 일치하지 않습니다.");
+        }
+
+        List<URL> urls = urlRepository.findByUser(user);
+        for (URL url : urls) {
+            clickEventRepository.deleteAll(clickEventRepository.findAllByUrl(url));
+        }
+        urlRepository.deleteAll(urls);
+
+        jwtUtil.addToBlackList(accessToken);
+        jwtUtil.deleteRefreshToken(email);
+
+        userRepository.delete(user);
     }
 }

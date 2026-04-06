@@ -1,14 +1,16 @@
 package bigmac.urlmodifierbackend.domain.user.controller;
 
+import bigmac.urlmodifierbackend.domain.user.dto.request.RefreshTokenRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserLoginRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.request.UserRegisterRequest;
+import bigmac.urlmodifierbackend.domain.user.dto.request.UserWithdrawRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import bigmac.urlmodifierbackend.domain.user.service.AuthService;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -54,8 +56,8 @@ public class AuthController {
      * @return 새로운 accessToken, refreshToken 발급
      */
     @PostMapping("/refresh")
-    public ResponseEntity<JwtResponse> refreshToken(HttpServletRequest request) {
-        return ResponseEntity.ok(authService.refreshToken(request));
+    public ResponseEntity<JwtResponse> refreshToken(@RequestBody RefreshTokenRequest refreshTokenRequest) {
+        return ResponseEntity.ok(authService.refreshToken(refreshTokenRequest.getRefreshToken()));
     }
 
     /**
@@ -72,6 +74,14 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.OK).build();
     }
 
-    // TODO 회원 탈퇴
+    @DeleteMapping("/withdraw")
+    public ResponseEntity<Void> withdrawUser(
+        @RequestHeader("Authorization") String authorizationHeader,
+        @RequestBody UserWithdrawRequest userWithdrawRequest) {
+        authService.withdrawUser(authorizationHeader, userWithdrawRequest);
+
+        return ResponseEntity.status(HttpStatus.OK).build();
+    }
+
     // TODO SMTP 설정
 }

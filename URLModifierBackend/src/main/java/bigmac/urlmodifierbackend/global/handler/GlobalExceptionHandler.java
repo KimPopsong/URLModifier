@@ -4,6 +4,7 @@ import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
 import bigmac.urlmodifierbackend.domain.user.exception.URLFindException;
+import bigmac.urlmodifierbackend.domain.user.exception.WithdrawFailException;
 import bigmac.urlmodifierbackend.global.dto.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,14 @@ public class GlobalExceptionHandler {
         log.warn("Login failed: {}", e.getMessage());
         ErrorResponse response = new ErrorResponse("LOGIN_FAIL", 
             "이메일 또는 비밀번호가 올바르지 않습니다.");
+
+        return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(WithdrawFailException.class)
+    public ResponseEntity<ErrorResponse> handleWithdrawFailException(WithdrawFailException e) {
+        log.warn("Withdraw failed: {}", e.getMessage());
+        ErrorResponse response = new ErrorResponse("WITHDRAW_FAIL", "비밀번호가 일치하지 않습니다.");
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
     }
