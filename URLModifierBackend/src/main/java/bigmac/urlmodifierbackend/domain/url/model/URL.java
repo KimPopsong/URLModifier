@@ -47,6 +47,12 @@ public class URL {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "expires_at", nullable = true)
+    private LocalDateTime expiresAt;
+
+    @Column(name = "max_clicks", nullable = true)
+    private Integer maxClicks;
+
     public URL(long id, User user, String originURL, String shortenedURL, String qrCodeBase64) {
         this.id = id;
         this.user = user;

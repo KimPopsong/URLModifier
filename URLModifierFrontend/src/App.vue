@@ -36,6 +36,20 @@
       </div>
     </header>
 
+    <!-- 만료 링크 알림 모달 -->
+    <transition name="fade">
+      <div v-if="expiredLinkCode" class="modal-backdrop" @click.self="expiredLinkCode = null">
+        <div class="modal">
+          <div class="modal-header">
+            <h2>링크 만료</h2>
+            <button class="btn-ghost small" @click="expiredLinkCode = null">✕</button>
+          </div>
+          <p class="expired-modal-message">만료된 링크입니다.</p>
+          <button class="btn-submit full" @click="expiredLinkCode = null">확인</button>
+        </div>
+      </div>
+    </transition>
+
     <!-- 메인 콘텐츠 -->
     <main class="app-main">
       <div
@@ -88,6 +102,37 @@
                       />
                     </div>
                   </transition>
+
+                  <label class="checkbox" :class="{ disabled: !isLoggedIn }" style="margin-top: 0.6rem">
+                    <input type="checkbox" v-model="useExpiry" :disabled="!isLoggedIn" />
+                    <span :class="{ 'text-muted': !isLoggedIn }">링크 만료 설정 (로그인 필요)</span>
+                  </label>
+
+                  <transition name="fade">
+                    <div v-if="useExpiry && isLoggedIn" class="expiry-options">
+                      <div class="expiry-row">
+                        <label class="field-label">만료 시각 <span class="optional-label">(선택)</span></label>
+                        <input
+                          v-model="expiryDate"
+                          type="datetime-local"
+                          class="text-input expiry-input"
+                          :min="new Date().toISOString().slice(0, 16)"
+                          :disabled="loading"
+                        />
+                      </div>
+                      <div class="expiry-row">
+                        <label class="field-label">최대 클릭 수 <span class="optional-label">(선택)</span></label>
+                        <input
+                          v-model.number="expiryClicks"
+                          type="number"
+                          min="1"
+                          class="text-input expiry-input"
+                          placeholder="제한 없음"
+                          :disabled="loading"
+                        />
+                      </div>
+                    </div>
+                  </transition>
                 </div>
               </form>
 
@@ -126,6 +171,16 @@
                     </div>
                     <div v-if="qrCode" class="qr-container">
                       <img :src="qrCode" alt="QR Code" class="qr-code" />
+                    </div>
+
+                    <div v-if="createdExpiresAt || createdMaxClicks" class="expiry-result">
+                      <span class="expiry-result-label">만료 조건</span>
+                      <span v-if="createdExpiresAt" class="tag tag-time">
+                        ⏰ {{ formatExpiry(createdExpiresAt) }}
+                      </span>
+                      <span v-if="createdMaxClicks" class="tag tag-clicks">
+                        👆 최대 {{ createdMaxClicks }}회
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -177,6 +232,15 @@
                           {{ url.shortenedUrl }}
                         </a>
                         <p class="url-origin">{{ url.originUrl }}</p>
+                        <div class="url-tags">
+                          <span v-if="url.expired" class="tag tag-expired">만료됨</span>
+                          <span v-if="url.expiresAt && !url.expired" class="tag tag-time">
+                            ⏰ {{ formatExpiry(url.expiresAt) }}
+                          </span>
+                          <span v-if="url.maxClicks" class="tag tag-clicks">
+                            👆 {{ url.clickCount }}/{{ url.maxClicks }}회
+                          </span>
+                        </div>
                       </div>
                       <div class="url-actions">
                         <button class="btn-outline small" @click="showUrlDetail(url)">통계</button>
@@ -257,6 +321,19 @@
                 <br />
                 <p class="detail-label">총 클릭 수</p>
                 <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
+
+                <template v-if="selectedUrlDetail.expiresAt || selectedUrlDetail.maxClicks">
+                  <br />
+                  <p class="detail-label">만료 조건</p>
+                  <div class="url-tags" style="margin-top: 0.25rem">
+                    <span v-if="selectedUrlDetail.expiresAt" class="tag tag-time">
+                      ⏰ {{ formatExpiry(selectedUrlDetail.expiresAt) }}
+                    </span>
+                    <span v-if="selectedUrlDetail.maxClicks" class="tag tag-clicks">
+                      👆 최대 {{ selectedUrlDetail.maxClicks }}회
+                    </span>
+                  </div>
+                </template>
 
                 <div
                   v-if="
@@ -518,11 +595,19 @@ export default {
       originalUrl: '',
       useCustomUrl: false,
       customSlug: '',
+      useExpiry: false,
+      expiryDate: '',
+      expiryClicks: null,
       shortenedUrl: '',
       qrCode: '',
+      createdExpiresAt: null,
+      createdMaxClicks: null,
       loading: false,
       error: '',
       isCopied: false,
+
+      // 만료 링크 알림
+      expiredLinkCode: null,
 
       // 인증/유저
       user: null,
@@ -566,6 +651,13 @@ export default {
     },
   },
   async created() {
+    const params = new URLSearchParams(window.location.search)
+    const expiredCode = params.get('expired')
+    if (expiredCode) {
+      this.expiredLinkCode = expiredCode
+      window.history.replaceState({}, '', '/')
+    }
+
     const storedAccess = localStorage.getItem('accessToken')
     const storedRefresh = localStorage.getItem('refreshToken')
     const storedUser = localStorage.getItem('user')
@@ -598,6 +690,21 @@ export default {
     }
   },
   methods: {
+    formatExpiry(value) {
+      if (!value) return ''
+      try {
+        return new Date(value).toLocaleString('ko-KR', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit',
+        })
+      } catch {
+        return value
+      }
+    },
+
     isTokenExpired(token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]))
@@ -638,7 +745,18 @@ export default {
       this.error = ''
       this.shortenedUrl = ''
       this.qrCode = ''
+      this.createdExpiresAt = null
+      this.createdMaxClicks = null
       this.isCopied = false
+
+      const expiresAt =
+        this.useExpiry && this.isLoggedIn && this.expiryDate
+          ? this.expiryDate + ':00'
+          : null
+      const maxClicks =
+        this.useExpiry && this.isLoggedIn && this.expiryClicks > 0
+          ? this.expiryClicks
+          : null
 
       try {
         let response
@@ -656,16 +774,21 @@ export default {
           response = await axios.post(`${API_BASE_URL}/short-urls/custom`, {
             originURL: this.originalUrl.trim(),
             customURL: this.customSlug.trim(),
+            expiresAt,
+            maxClicks,
           })
         } else {
-          // 로그인한 사용자가 일반 URL을 만들 때도 인증 헤더 전송
           response = await axios.post(`${API_BASE_URL}/short-urls`, {
             url: this.originalUrl.trim(),
+            expiresAt,
+            maxClicks,
           })
         }
 
         this.shortenedUrl = response.data.shortenedUrl
         this.qrCode = `data:image/png;base64,${response.data.qrCode}`
+        this.createdExpiresAt = response.data.expiresAt || null
+        this.createdMaxClicks = response.data.maxClicks || null
 
         // 마이페이지 갱신
         if (this.isLoggedIn) {
@@ -1856,6 +1979,86 @@ export default {
 .text-input:focus {
   border-color: #818cf8;
   box-shadow: 0 0 0 1px rgba(129, 140, 248, 0.7);
+}
+
+.expired-modal-message {
+  font-size: 0.95rem;
+  color: #374151;
+  margin: 0.5rem 0 1.25rem;
+}
+
+.expiry-options {
+  margin-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.9rem;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.expiry-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.expiry-input {
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.optional-label {
+  color: #9ca3af;
+  font-size: 0.78rem;
+  font-weight: normal;
+}
+
+.url-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.3rem;
+}
+
+.tag {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 500;
+}
+
+.tag-expired {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tag-time {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.tag-clicks {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.expiry-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  padding: 0.6rem 0.8rem;
+  background: #f9fafb;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.expiry-result-label {
+  font-size: 0.78rem;
+  color: #6b7280;
+  margin-right: 0.2rem;
 }
 
 .account-section {

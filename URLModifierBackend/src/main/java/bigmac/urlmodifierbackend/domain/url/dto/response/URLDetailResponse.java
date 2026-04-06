@@ -16,5 +16,7 @@ public class URLDetailResponse {
     private String shortenedURL;
     private String qrCode;
     private LocalDateTime createdAt;
+    private LocalDateTime expiresAt;
+    private Integer maxClicks;
     private List<ClickEventResponse> clickEventList;
 }

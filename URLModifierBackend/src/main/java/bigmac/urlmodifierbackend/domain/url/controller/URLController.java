@@ -5,6 +5,7 @@ import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLInfoResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLResponse;
+import bigmac.urlmodifierbackend.domain.url.exception.URLExpiredException;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.service.URLService;
 import bigmac.urlmodifierbackend.domain.user.model.User;
@@ -25,9 +26,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-/**
- * URL 단축 및 리디렉션 요청을 처리하는 컨트롤러
- */
 @RestController
 @RequiredArgsConstructor
 public class URLController {
@@ -39,107 +37,83 @@ public class URLController {
     @Value("${custom.FE_BASE_URL}")
     private String FE_BASE_URL;
 
-    /**
-     * 원본 URL을 받아 단축 URL과 QR 코드를 생성
-     *
-     * @param urlRequest 원본 URL
-     * @return 생성된 단축 URL과 QR 코드
-     */
     @PostMapping("/short-urls")
     public ResponseEntity<URLResponse> makeURLShort(@AuthenticationPrincipal @Nullable User user,
         @RequestBody URLRequest urlRequest) {
-        URL url = urlService.makeURLShort(user, urlRequest.getUrl());
+        URL url = urlService.makeURLShort(user, urlRequest);
 
-        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
-            new URLResponse(String.valueOf(url.getId()), urlRequest.getUrl(),
-                BE_BASE_URL + url.getShortenedURL(),
-                url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
+        URLResponse response = URLResponse.builder()
+            .id(String.valueOf(url.getId()))
+            .originUrl(urlRequest.getUrl())
+            .shortenedUrl(BE_BASE_URL + url.getShortenedURL())
+            .qrCode(url.getQrCode())
+            .expiresAt(url.getExpiresAt())
+            .maxClicks(url.getMaxClicks())
+            .clickCount(0L)
+            .expired(false)
+            .build();
+
+        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(response);
     }
 
-    /**
-     * 사용자 커스텀 URL 생성
-     *
-     * @param user             사용자 정보
-     * @param customURLRequest 생성하려는 원본 URL과 커스텀 URL
-     * @return 생성된 단축 URL과 QR 코드
-     */
     @PostMapping("/short-urls/custom")
     public ResponseEntity<URLResponse> makeCustomURL(@AuthenticationPrincipal User user,
         @RequestBody CustomURLRequest customURLRequest) {
-        // 로그인하지 않은 사용자가 커스텀 URL을 만들려는 경우 체크
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "커스텀 URL을 사용하려면 로그인이 필요합니다.");
         }
-        
+
         URL url = urlService.makeCustomURL(user, customURLRequest);
 
-        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(
-            new URLResponse(String.valueOf(url.getId()), url.getOriginURL(),
-                BE_BASE_URL + url.getShortenedURL(),
-                url.getQrCode()));  // 생성 응답(201 CREATED)과 함께 생성된 단축 URL과 QR 코드를 반환
+        URLResponse response = URLResponse.builder()
+            .id(String.valueOf(url.getId()))
+            .originUrl(url.getOriginURL())
+            .shortenedUrl(BE_BASE_URL + url.getShortenedURL())
+            .qrCode(url.getQrCode())
+            .expiresAt(url.getExpiresAt())
+            .maxClicks(url.getMaxClicks())
+            .clickCount(0L)
+            .expired(false)
+            .build();
+
+        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(response);
     }
 
-    /**
-     * 원본 URL 확인
-     *
-     * @param shortUrl 단축 URL
-     * @return URL 정보가 존재하는 경우 true와 원본 URL, 아닌 경우 false와 null 반환
-     */
     @GetMapping("/short-urls/{shortUrl}")
     public ResponseEntity<URLInfoResponse> isValidURL(@PathVariable String shortUrl) {
         Optional<URL> url = urlService.getOriginURLByShortURL(shortUrl);
 
-        if (url.isEmpty())  // URL 정보가 존재하지 않는 경우
-        {
+        if (url.isEmpty()) {
             return ResponseEntity.ok(new URLInfoResponse(false, null));
-        } else  // URL 정보가 존재하는 경우
-        {
+        } else {
             return ResponseEntity.ok(new URLInfoResponse(true, url.get().getOriginURL()));
         }
     }
 
-    /**
-     * 단축 URL을 받아 원본 URL로 리디렉션
-     *
-     * @param shortenedUrl 경로 변수로 받은 단축 URL 문자열
-     * @return 원본 URL로 리디렉션하는 응답
-     */
     @GetMapping("/{shortenedUrl}")
     public ResponseEntity<Void> redirectToOriginal(@PathVariable String shortenedUrl,
         HttpServletRequest request) {
-        String referrer = request.getHeader("referer");  // 이전 페이지 URL
-        String userAgent = request.getHeader("User-Agent");  // 브라우저/디바이스 정보
-        String ipAddress = request.getRemoteAddr();  // IP
+        String referrer = request.getHeader("referer");
+        String userAgent = request.getHeader("User-Agent");
+        String ipAddress = request.getRemoteAddr();
 
-        URL url = urlService.redirectToOriginal(referrer, userAgent, ipAddress, shortenedUrl);
-
-        return ResponseEntity.status(HttpStatus.FOUND).header("Location", url.getOriginURL())
-            .build();  // HTTP 상태 코드 302 (Found)와 함께 Location 헤더에 원본 URL을 담아 리디렉션 응답
+        try {
+            URL url = urlService.redirectToOriginal(referrer, userAgent, ipAddress, shortenedUrl);
+            return ResponseEntity.status(HttpStatus.FOUND).header("Location", url.getOriginURL()).build();
+        } catch (URLExpiredException e) {
+            return ResponseEntity.status(HttpStatus.FOUND)
+                .header("Location", FE_BASE_URL + "?expired=" + shortenedUrl)
+                .build();
+        }
     }
 
-
-    /**
-     * 단축 URL 제거
-     *
-     * @param user  사용자 정보
-     * @param urlId 제거하려는 URL의 ID
-     * @return HttpStatus.ACCEPTED
-     */
     @DeleteMapping("/urls/{urlId}")
     public ResponseEntity<Void> deleteUrl(@AuthenticationPrincipal User user,
         @PathVariable Long urlId) {
         urlService.deleteUrl(user, urlId);
-
         return ResponseEntity.status(HttpStatus.ACCEPTED).build();
     }
 
-    /**
-     * URL 통계 확인
-     *
-     * @param user  사용자 정보
-     * @param urlId 확인하려는 URL의 ID
-     * @return URLDetailResponse
-     */
     @GetMapping("/urls/{urlId}")
     public ResponseEntity<URLDetailResponse> detailUrl(@AuthenticationPrincipal User user,
         @PathVariable Long urlId) {

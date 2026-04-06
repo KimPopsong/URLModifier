@@ -23,6 +23,10 @@ spring:
       port: 6379
       password: ${REDIS_PASSWORD:}
 
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
 jwt:
   secret: ${JWT_SECRET:VEVTVF9LRVlfRk9SX0pXVF9TRUNVUklUWV9BTkRfREVWRUxPUE1FTlRfUFVSUE9TRV9PTkxZX0RPX05PVF9VU0VfSU5fUFJPRFVDVElPTl9FTlZJUk9OTUVOVF9USElTX0lTX0FfVkVSWV9MT05HX1NFQ1JFVF9LRVk=}
 

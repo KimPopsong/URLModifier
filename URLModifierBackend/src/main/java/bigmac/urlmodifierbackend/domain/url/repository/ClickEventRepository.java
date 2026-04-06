@@ -19,4 +19,6 @@ public interface ClickEventRepository extends JpaRepository<ClickEvent, Long> {
         @Param("end") LocalDateTime end);
 
     List<ClickEvent> findAllByUrl(URL url);
+
+    long countByUrl(URL url);
 }

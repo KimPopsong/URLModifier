@@ -1,6 +1,7 @@
 package bigmac.urlmodifierbackend.global.handler;
 
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
+import bigmac.urlmodifierbackend.domain.url.exception.URLExpiredException;
 import bigmac.urlmodifierbackend.domain.user.exception.EmailAlreadyExistsException;
 import bigmac.urlmodifierbackend.domain.user.exception.LoginFailException;
 import bigmac.urlmodifierbackend.domain.user.exception.URLFindException;
@@ -43,6 +44,14 @@ public class GlobalExceptionHandler {
         ErrorResponse response = new ErrorResponse("WITHDRAW_FAIL", "비밀번호가 일치하지 않습니다.");
 
         return new ResponseEntity<>(response, HttpStatus.UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(URLExpiredException.class)
+    public ResponseEntity<ErrorResponse> handleURLExpiredException(URLExpiredException e) {
+        log.warn("URL expired: {}", e.getMessage());
+        ErrorResponse response = new ErrorResponse("URL_EXPIRED", "만료된 링크입니다.");
+
+        return new ResponseEntity<>(response, HttpStatus.GONE);
     }
 
     @ExceptionHandler(URLException.class)

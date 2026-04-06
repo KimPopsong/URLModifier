@@ -1,6 +1,7 @@
 package bigmac.urlmodifierbackend.domain.url.service;
 
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
+import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.user.model.User;
@@ -9,7 +10,7 @@ import org.springframework.lang.Nullable;
 
 public interface URLService {
 
-    URL makeURLShort(@Nullable User user, String url);
+    URL makeURLShort(@Nullable User user, URLRequest urlRequest);
 
     URL makeCustomURL(User user, CustomURLRequest customURLRequest);
 

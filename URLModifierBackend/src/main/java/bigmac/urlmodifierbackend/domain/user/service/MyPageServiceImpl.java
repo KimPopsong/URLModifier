@@ -1,11 +1,13 @@
 package bigmac.urlmodifierbackend.domain.user.service;
 
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLResponse;
+import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.repository.ClickEventRepository;
 import bigmac.urlmodifierbackend.domain.url.repository.URLRepository;
 import bigmac.urlmodifierbackend.domain.user.dto.response.MyPageResponse;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
+import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,25 +22,44 @@ public class MyPageServiceImpl implements MyPageService {
     private final URLRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
 
-    /**
-     * 마이페이지
-     *
-     * @param user 사용자 정보
-     * @return MyPageResponse
-     */
     @Override
     public MyPageResponse getMyPage(User user) {
         this.checkUser(user);
 
         MyPageResponse myPageResponse = new MyPageResponse();
-
         myPageResponse.setEmail(user.getEmail());
         myPageResponse.setNickname(user.getNickName());
-        myPageResponse.setUrls(urlRepository.findByUser(user).stream().map(
-            url -> new URLResponse(String.valueOf(url.getId()), url.getOriginURL(),
-                url.getShortenedURL(), url.getQrCode())).collect(Collectors.toList()));
+        myPageResponse.setUrls(urlRepository.findByUser(user).stream()
+            .map(url -> buildURLResponse(url))
+            .collect(Collectors.toList()));
 
         return myPageResponse;
+    }
+
+    private URLResponse buildURLResponse(URL url) {
+        long clickCount = clickEventRepository.countByUrl(url);
+        boolean expired = isExpired(url, clickCount);
+
+        return URLResponse.builder()
+            .id(String.valueOf(url.getId()))
+            .originUrl(url.getOriginURL())
+            .shortenedUrl(url.getShortenedURL())
+            .qrCode(url.getQrCode())
+            .expiresAt(url.getExpiresAt())
+            .maxClicks(url.getMaxClicks())
+            .clickCount(clickCount)
+            .expired(expired)
+            .build();
+    }
+
+    private boolean isExpired(URL url, long clickCount) {
+        if (url.getExpiresAt() != null && LocalDateTime.now().isAfter(url.getExpiresAt())) {
+            return true;
+        }
+        if (url.getMaxClicks() != null && clickCount >= url.getMaxClicks()) {
+            return true;
+        }
+        return false;
     }
 
     private void checkUser(User user) {
