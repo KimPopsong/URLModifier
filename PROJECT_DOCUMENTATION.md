@@ -324,18 +324,63 @@ docker compose up -d
 
 ---
 
+## 미니 PC 서버 구축 현황
+
+> OS: Windows, 서버 전용으로 사용
+
+### 완료된 작업
+- [x] WSL2 + Ubuntu 22.04 설치
+- [x] Docker Engine 29.4.0 / Docker Compose 5.1.3 설치
+- [x] WSL2 자동 시작 등록 (Windows 작업 스케줄러)
+- [x] Windows 자동 업데이트 비활성화
+- [x] 프로젝트 git clone (`~/URLModifier`)
+- [x] Java 17 설치 (`openjdk-17-jdk`)
+- [x] 백엔드 JAR 빌드 (`./gradlew bootJar`)
+- [x] `docker compose up -d` 실행 성공 (app + db + redis)
+
+### 서버 실행 방법 (Ubuntu 터미널)
+```bash
+cd ~/URLModifier
+
+# 빌드 후 실행 (코드 변경 시)
+cd URLModifierBackend && ./gradlew bootJar && cd ..
+docker compose up -d --build
+
+# 재시작만 할 경우
+docker compose up -d
+
+# 상태 확인
+docker compose ps
+
+# 로그 확인
+docker compose logs -f app
+```
+
+### 진행 중인 작업
+- [ ] 포트 포워딩 (공유기 설정) — 미니 PC 내부 IP 확인 후 진행
+- [ ] `.env` 파일 작성 (운영용 JWT_SECRET, DB_PASSWORD 등으로 교체)
+  - 필요 항목: `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `BE_URL`, `FE_URL`, `REDIS_PASSWORD`
+  - `.env` 파일은 git에 커밋하지 않도록 `.gitignore` 확인 필요
+
+---
+
 ## 향후 작업 (TODO)
 
-### 1. 서버 업로드 및 실 운영
-- 미니 PC를 서버로 활용하여 실제 운영 환경에 배포
-- 운영 환경용 환경 변수(`DB_PASSWORD`, `JWT_SECRET`, `BE_URL`, `FE_URL` 등) 별도 관리 필요
-- 도메인/포트 확정 후 `BE_URL`, `FE_URL` 값 변경 (QR 코드 기준 URL 영향)
+### 1. 포트 포워딩
+- 미니 PC 내부 IP 확인: `hostname -I`
+- 공유기 관리 페이지에서 포트 포워딩 설정
+  - 외부 `8080` → 미니 PC `8080` (백엔드 API)
+  - 외부 `80`, `443` → 미니 PC `80` (Nginx, 나중에)
 
 ### 2. CI/CD 구축
 - 미니 PC에서 동작하는 CI/CD 파이프라인 구축
 - 예상 구성: 코드 Push → 빌드(`./gradlew bootJar`) → Docker 이미지 재빌드 → 컨테이너 재시작
 
 ### 3. 환경 변수 파일 (.env) 작성
-- 서버 배포 전 `.env` 파일 생성 필요 (서버 세팅 Step 4-2)
-- 필요 항목: `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `BE_URL`, `FE_URL`, `REDIS_PASSWORD`
-- `.env` 파일은 git에 절대 커밋하지 않도록 `.gitignore` 확인 필요
+- 현재 JWT_SECRET은 개발용 기본값 사용 중 — 운영 전 반드시 교체 필요
+- `.env` 파일 생성 후 `docker compose up -d` 재실행하면 자동 적용
+
+### 4. 도메인 및 HTTPS 적용 (선택)
+- 도메인 구매 후 DNS 설정 → 공인 IP 연결
+- Nginx 리버스 프록시 + Let's Encrypt 인증서로 HTTPS 적용
+- 적용 후 `BE_URL`, `FE_URL` 환경 변수 도메인으로 변경 (QR 코드 기준 URL 영향)
