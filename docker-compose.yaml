@@ -3,26 +3,47 @@ services:
     image: postgres:14
     container_name: postgres
     environment:
-      POSTGRES_USER: test
-      POSTGRES_PASSWORD: test
+      POSTGRES_USER: ${DB_USERNAME:-test}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
       POSTGRES_DB: urlModifierDB
     ports:
       - "5432:5432"
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U test -d urlModifierDB"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-test} -d urlModifierDB"]
       interval: 5s
       timeout: 5s
       retries: 5
 
   redis:
     image: redis:7
-    container_name: test
+    container_name: redis
     ports:
       - "6379:6379"
     volumes:
       - redis_data:/data
+
+  app:
+    build: .
+    container_name: urlmodifier-app
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/urlModifierDB
+      DB_USERNAME: ${DB_USERNAME:-test}
+      DB_PASSWORD: ${DB_PASSWORD:-test}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET}
+      BE_URL: ${BE_URL:-http://localhost:8080/}
+      FE_URL: ${FE_URL:-http://localhost:5173/}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
 
 volumes:
   db_data:
