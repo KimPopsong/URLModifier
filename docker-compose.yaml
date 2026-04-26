@@ -1,13 +1,83 @@
 services:
+
+  # ── FE Build: Vue 빌드 후 fe_static 볼륨에 결과물 복사 후 종료 ──
+  fe-build:
+    build:
+      context: URLModifierFrontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${PUBLIC_URL}
+    volumes:
+      - fe_static:/fe_static
+    command: ["sh", "-c", "cp -r /app/dist/. /fe_static/"]
+    restart: "no"
+
+  # ── Nginx: 유일하게 외부 포트 오픈 (80 + 443) ──────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro     # nginx 설정 (호스트 직접 관리)
+      - ./certbot/conf:/etc/letsencrypt:ro       # Let's Encrypt 인증서
+      - ./certbot/www:/var/www/certbot           # ACME HTTP-01 challenge
+      - fe_static:/usr/share/nginx/html:ro       # FE 빌드 결과물
+    networks:
+      - app-network
+    depends_on:
+      fe-build:
+        condition: service_completed_successfully
+      app:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Certbot: 인증서 발급 및 자동 갱신 (12시간마다) ─────────────
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: >
+      /bin/sh -c "trap exit TERM;
+        while :; do
+          certbot renew;
+          sleep 12h & wait $${!};
+        done"
+    restart: unless-stopped
+
+  # ── BE: Spring Boot (외부 포트 없음) ──────────────────────────
+  app:
+    build: .
+    container_name: urlmodifier-app
+    networks:
+      - app-network
+    environment:
+      DB_URL:         jdbc:postgresql://db:5432/urlModifierDB
+      DB_USERNAME:    ${DB_USERNAME:-test}
+      DB_PASSWORD:    ${DB_PASSWORD:-test}
+      REDIS_HOST:     redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      JWT_SECRET:     ${JWT_SECRET:-VEVTVF9LRVlfRk9SX0pXVF9TRUNVUklUWV9BTkRfREVWRUxPUE1FTlRfUFVSUE9TRV9PTkxZX0RPX05PVF9VU0VfSU5fUFJPRFVDVElPTl9FTlZJUk9OTUVOVF9USElTX0lTX0FfVkVSWV9MT05HX1NFQ1JFVF9LRVk=}
+      BE_URL:         ${PUBLIC_URL}/
+      FE_URL:         ${PUBLIC_URL}/
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── DB: PostgreSQL (외부 포트 없음) ───────────────────────────
   db:
     image: postgres:14
     container_name: postgres
+    networks:
+      - app-network
     environment:
-      POSTGRES_USER: ${DB_USERNAME:-test}
+      POSTGRES_USER:     ${DB_USERNAME:-test}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-test}
-      POSTGRES_DB: urlModifierDB
-    ports:
-      - "5432:5432"
+      POSTGRES_DB:       urlModifierDB
     volumes:
       - db_data:/var/lib/postgresql/data
     healthcheck:
@@ -16,35 +86,20 @@ services:
       timeout: 5s
       retries: 5
 
+  # ── Redis (외부 포트 없음) ─────────────────────────────────────
   redis:
     image: redis:7
     container_name: redis
-    ports:
-      - "6379:6379"
+    networks:
+      - app-network
     volumes:
       - redis_data:/data
 
-  app:
-    build: .
-    container_name: urlmodifier-app
-    ports:
-      - "8080:8080"
-    environment:
-      DB_URL: jdbc:postgresql://db:5432/urlModifierDB
-      DB_USERNAME: ${DB_USERNAME:-test}
-      DB_PASSWORD: ${DB_PASSWORD:-test}
-      REDIS_HOST: redis
-      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
-      JWT_SECRET: ${JWT_SECRET:-VEVTVF9LRVlfRk9SX0pXVF9TRUNVUklUWV9BTkRfREVWRUxPUE1FTlRfUFVSUE9TRV9PTkxZX0RPX05PVF9VU0VfSU5fUFJPRFVDVElPTl9FTlZJUk9OTUVOVF9USElTX0lTX0FfVkVSWV9MT05HX1NFQ1JFVF9LRVk=}
-      BE_URL: ${BE_URL:-http://localhost:8080/}
-      FE_URL: ${FE_URL:-http://localhost:5173/}
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_started
-    restart: unless-stopped
+networks:
+  app-network:
+    driver: bridge
 
 volumes:
   db_data:
   redis_data:
+  fe_static:

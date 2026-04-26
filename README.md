@@ -1,134 +1,224 @@
-# URLModifier
+# URL Modifier
 
-URL Shortener 서비스의 백엔드 프로젝트입니다.
+긴 URL을 짧게 단축하고 QR 코드를 자동 생성하는 서비스입니다.
+로그인 사용자에게는 커스텀 URL 슬러그, 만료 조건 설정, 클릭 통계 기능을 추가 제공합니다.
 
-## 기능
+---
 
-- **URL 단축**: 긴 URL을 입력받아 짧은 URL을 생성합니다.
-- **리디렉션**: 짧은 URL로 접속 시 원래의 긴 URL로 리디렉션합니다.
-- **QR 코드 생성**: 단축된 URL에 대한 QR 코드를 생성하여 제공합니다.
+## 주요 기능
 
-## 아키텍처
+| 기능 | 비회원 | 회원 |
+|---|:---:|:---:|
+| URL 단축 | O | O |
+| QR 코드 자동 생성 | O | O |
+| 커스텀 URL 슬러그 | X | O |
+| 만료 시각 설정 | X | O |
+| 최대 클릭 수 설정 | X | O |
+| 내 URL 목록 관리 | X | O |
+| 클릭 통계 (일별 차트) | X | O |
 
-- **언어**: Java 17
-- **프레임워크**: Spring Boot 3.5.3
-- **데이터베이스**: PostgreSQL
-- **ORM**: Spring Data JPA
-- **의존성 관리**: Gradle
+**URL 제약 조건**
+- 단축 URL의 재단축 불가 (`bit.ly`, `tinyurl.com`, `t.co` 및 자기 자신 도메인)
+- 커스텀 슬러그: 1자 이상 30자 이하
+- 비회원 생성 URL은 동일 원본 URL 재요청 시 기존 결과 재사용
+- 회원 생성 URL은 동일 원본 URL 재요청 시 기존 결과 재사용
 
-### 프로젝트 구조
+**JWT 토큰 정책**
+- Access Token 유효시간: 1시간
+- Refresh Token 유효시간: 7일 (Redis에 저장)
+- 로그아웃 시 Access Token Redis 블랙리스트 등록 (잔여 만료 시간까지 유지)
+
+---
+
+## 기술 스택
+
+### Backend
+| 항목 | 버전 |
+|---|---|
+| Java | 17 |
+| Spring Boot | 3.5.3 |
+| Spring Security | - |
+| Spring Data JPA | - |
+| PostgreSQL | 14 |
+| Redis | 7 |
+| jjwt | 0.12.6 |
+| ZXing (QR Code) | 3.5.3 |
+| Springdoc OpenAPI (Swagger) | 2.8.9 |
+
+### Frontend
+| 항목 | 버전 |
+|---|---|
+| Vue | 3.5.17 |
+| Vite | 7 |
+| Axios | 1.10.0 |
+| Chart.js | 4.4.0 |
+| chartjs-plugin-zoom | 2.0.1 |
+
+### Infra
+| 항목 | 내용 |
+|---|---|
+| FE 서빙 | Nginx 1.27-alpine |
+| 컨테이너 | Docker / Docker Compose |
+
+---
+
+## 프로젝트 구조
 
 ```
-URLModifierBackend
-├── src
-│   ├── main
-│   │   ├── java
-│   │   │   └── bigmac
-│   │   │       └── urlmodifierbackend
-│   │   │           ├── config         # 설정 클래스
-│   │   │           ├── controller     # API 엔드포인트
-│   │   │           ├── dto            # 데이터 전송 객체
-│   │   │           ├── model          # 데이터베이스 엔티티
-│   │   │           ├── repository     # 데이터베이스 접근
-│   │   │           ├── service        # 비즈니스 로직
-│   │   │           └── util           # 유틸리티 클래스
-│   │   └── resources
-│   │       └── application.yml  # 애플리케이션 설정
-│   └── test
-└── build.gradle               # 프로젝트 의존성 및 빌드 설정
+URLModifier/
+├── docker-compose.yaml              # 전체 스택 오케스트레이션
+├── Dockerfile                       # BE 멀티스테이지 빌드
+├── .env.example                     # 환경변수 템플릿
+├── .dockerignore
+│
+├── URLModifierBackend/
+│   ├── build.gradle
+│   ├── settings.gradle
+│   └── src/main/
+│       ├── resources/
+│       │   └── application.yaml
+│       └── java/bigmac/urlmodifierbackend/
+│           ├── domain/
+│           │   ├── url/
+│           │   │   ├── controller/  URLController
+│           │   │   ├── service/     URLService, URLServiceImpl, URLValidateServiceImpl
+│           │   │   ├── model/       URL, ClickEvent
+│           │   │   ├── repository/  URLRepository, ClickEventRepository
+│           │   │   └── dto/         request/, response/
+│           │   └── user/
+│           │       ├── controller/  AuthController, MyPageController
+│           │       ├── service/     AuthService, AuthServiceImpl, MyPageService, MyPageServiceImpl
+│           │       ├── model/       User
+│           │       ├── repository/  UserRepository
+│           │       └── dto/         request/, response/
+│           └── global/
+│               ├── config/   SecurityConfig, WebConfig, RedisConfig, IdGeneratorConfig
+│               ├── util/     JwtUtil, JwtAuthenticationFilter, SnowflakeIdGenerator, Base62, QRCodeUtil
+│               ├── dto/      ErrorResponse
+│               └── handler/  GlobalExceptionHandler
+│
+└── URLModifierFrontend/
+    ├── Dockerfile                   # FE 멀티스테이지 빌드
+    ├── nginx.conf                   # Nginx 프록시 설정
+    ├── .dockerignore
+    ├── vite.config.js
+    └── src/
+        ├── main.js
+        ├── App.vue                  # 단일 SPA (Vue Router 미사용)
+        └── assets/
 ```
 
-## 데이터베이스
+---
 
-- **테이블명**: `URL`
-- **컬럼**:
-    - `id` (PK, BigInt): Snowflake 알고리즘으로 생성된 고유 ID
-    - `origin_url` (VARCHAR): 원본 URL
-    - `shortened_url` (VARCHAR): 단축된 URL (Base62 인코딩)
-    - `qr_code` (VARCHAR): QR 코드 이미지 (Base64 인코딩된 문자열)
+## 네트워크 구조
 
-## 트러블슈팅
+Docker에서는 FE(Nginx) 포트만 외부에 열리며, BE/DB/Redis는 내부 네트워크(`app-network`)에서만 접근 가능합니다.
 
-DB 연결 오류, WSL/Docker 포트 충돌 등은 [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)를 참고하세요.
+```
+외부 (인터넷)
+      │
+   :80 (fe / Nginx)   ← 유일하게 열린 포트
+      │
+      └── app-network (Docker 내부)
+              ├── app (BE)  :8080   포트 비노출
+              │       ├── db     :5432   포트 비노출
+              │       └── redis  :6379   포트 비노출
+```
 
-## API
+**Nginx 요청 처리 흐름**
 
-### `POST /short-urls`
+| 요청 경로 | 처리 |
+|---|---|
+| `GET /` | Vue SPA `index.html` 서빙 |
+| `/assets/*` | 정적 파일 서빙 (캐시 1년) |
+| `/auth/*`, `/short-urls*`, `/me`, `/urls/*` | BE 프록시 (REST API) |
+| `/{slug}` | BE 프록시 → 원본 URL로 302 리다이렉트 |
 
-- **설명**: 새로운 단축 URL을 생성합니다.
-- **Request Body**:
-    ```json
-    {
-      "url": "https://example.com/very/long/url"
-    }
-    ```
-- **Response Body**:
-    ```json
-    {
-      "shortenedUrl": "http://localhost:8080/abcdefg",
-      "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg..."
-    }
-    ```
+---
 
-### `GET /{shortUrl}`
+## Docker 배포
 
-- **설명**: `shortUrl`에 해당하는 원본 URL로 리디렉션합니다.
-- **성공**: HTTP 302 Found, `Location` 헤더에 원본 URL 포함
-- **실패**: HTTP 404 Not Found
+### 사전 요구사항
 
-## 환경 설정 (로컬 개발)
+- Docker Engine
+- Docker Compose
 
-로컬에서 URL Modifier를 실행하려면 아래 도구들이 필요합니다.
+### 1. 환경변수 파일 설정
 
-### 필요 환경
+```bash
+cp .env.example .env
+```
 
-| 구분 | 도구 | 용도 | 비고 |
-|------|------|------|------|
-| 필수 | **Docker** | PostgreSQL, Redis 실행 | DB/캐시를 로컬에 설치하지 않고 컨테이너로 사용 |
-| 필수 | **Node.js** (v18 이상 권장) | 프론트엔드 빌드 및 개발 서버 | Vite + Vue 3 사용 |
-| 필수 | **Java 17** | 백엔드 빌드 및 실행 | Spring Boot 3.x 요구 |
-| 선택 | **Gradle** | 백엔드 빌드 | 프로젝트에 Gradle Wrapper 포함 (`./gradlew` 사용 가능) |
+`.env` 파일에서 아래 값을 채웁니다.
 
-### 1. Docker 설치
+| 변수 | 설명 | 예시 |
+|---|---|---|
+| `PUBLIC_URL` | 외부 접근 도메인/IP (끝에 `/` 없음) | `http://mysite.com` |
+| `DB_USERNAME` | PostgreSQL 사용자 이름 | `urluser` |
+| `DB_PASSWORD` | PostgreSQL 비밀번호 | `changeme` |
+| `REDIS_PASSWORD` | Redis 비밀번호 (없으면 빈칸) | |
+| `JWT_SECRET` | JWT 서명 키 (Base64 인코딩, 32바이트 이상 권장) | |
 
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) 설치 후 실행
-- 터미널에서 `docker --version`, `docker compose version` 으로 확인
+> **JWT_SECRET 생성 예시**
+> ```bash
+> openssl rand -base64 32
+> ```
 
-### 2. Node.js 설치
+`PUBLIC_URL`은 단축 URL 생성, QR 코드, 만료 링크 리다이렉트에 모두 사용됩니다.
+예를 들어 `http://mysite.com`으로 설정하면 생성된 단축 URL이 `http://mysite.com/aB3cD4` 형태가 됩니다.
 
-- [Node.js 공식 사이트](https://nodejs.org/)에서 LTS 버전 설치 (v18 이상 권장)
-- 확인: `node --version`, `npm --version`
+### 2. 빌드 및 실행
 
-### 3. Java 17 설치
+```bash
+docker compose up -d --build
+```
 
-- [Eclipse Temurin](https://adoptium.net/) 또는 [Oracle JDK](https://www.oracle.com/java/technologies/downloads/) 등 Java 17 설치
-- 확인: `java -version`
+BE와 FE 모두 이미지 빌드부터 실행까지 자동으로 처리됩니다.
 
-### 4. 로컬 실행 순서
+### 3. 종료
 
-#### 4-1. 인프라 실행 (Docker)
+```bash
+# 컨테이너만 종료
+docker compose down
 
-PostgreSQL과 Redis를 Docker Compose로 띄웁니다.
+# 컨테이너 + DB 볼륨까지 삭제
+docker compose down -v
+```
+
+---
+
+## 로컬 개발 환경
+
+### 사전 요구사항
+
+| 도구 | 버전 | 용도 |
+|---|---|---|
+| Java | 17 | BE 실행 |
+| Node.js | 18 이상 | FE 빌드/실행 |
+| Docker | - | DB, Redis 실행 |
+
+### 1. 인프라 실행 (DB, Redis만)
 
 ```bash
 # 프로젝트 루트에서
 docker compose up -d db redis
 ```
 
-- PostgreSQL: `localhost:5432`, DB명 `urlModifierDB`, 사용자/비밀번호 `test`/`test`
-- Redis: `localhost:6379` (비밀번호 없음)
+- PostgreSQL: `localhost:5432`, DB명 `urlModifierDB`, 기본 계정 `test`/`test`
+- Redis: `localhost:6379`
 
-#### 4-2. 백엔드 실행
+### 2. 백엔드 실행
 
 ```bash
 cd URLModifierBackend
 ./gradlew bootRun
 ```
 
-- 기본 주소: `http://localhost:8080`
-- DB/Redis는 위에서 띄운 컨테이너에 자동 연결됩니다. (`application.yaml` 기본값 사용)
+- 실행 주소: `http://localhost:8080`
+- Swagger UI: `http://localhost:8080/swagger-ui.html`
+- `application.yaml` 기본값이 위 Docker 컨테이너 설정과 일치하므로 별도 환경변수 설정 불필요
 
-#### 4-3. 프론트엔드 실행
+### 3. 프론트엔드 실행
 
 ```bash
 cd URLModifierFrontend
@@ -136,54 +226,261 @@ npm install
 npm run dev
 ```
 
-- 개발 서버: `http://localhost:5173` (Vite 기본 포트)
+- 실행 주소: `http://localhost:5173`
+- BE 주소를 변경하려면 `URLModifierFrontend/.env.local` 파일을 생성합니다.
 
-### 5. Docker로 전체 앱 실행 (백엔드 JAR 빌드 필요)
-
-백엔드 JAR을 먼저 빌드한 뒤 Docker Compose로 앱까지 함께 실행할 수 있습니다.
-
-```bash
-# 백엔드 JAR 빌드
-cd URLModifierBackend
-./gradlew bootJar
-
-# 프로젝트 루트로 이동 후 전체 서비스 실행
-cd ..
-docker compose up -d
+```
+VITE_API_URL=http://localhost:8080
 ```
 
-- 백엔드: `http://localhost:8080`
-- DB: `localhost:5432`, Redis: `localhost:6379`
-- 프론트엔드는 별도로 `URLModifierFrontend`에서 `npm run dev`로 실행
+---
 
-### 6. 환경 변수 (선택)
+## 환경변수 전체 목록
 
-`application.yaml`에서 다음 환경 변수로 오버라이드 가능합니다.
+### Backend (`application.yaml` 참조)
 
-| 변수 | 설명 | 기본값 |
-|------|------|--------|
+| 환경변수 | 설명 | 기본값 |
+|---|---|---|
 | `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/urlModifierDB` |
 | `DB_USERNAME` | DB 사용자명 | `test` |
 | `DB_PASSWORD` | DB 비밀번호 | `test` |
 | `REDIS_HOST` | Redis 호스트 | `localhost` |
-| `BE_BASE_URL` | 백엔드 Base URL | `http://localhost:8080/` |
-| `FE_BASE_URL` | 프론트엔드 Base URL | `http://localhost:5173/` |
-| `JWT_SECRET` | JWT 서명용 시크릿 | (개발용 기본값) |
+| `REDIS_PASSWORD` | Redis 비밀번호 | (없음) |
+| `JWT_SECRET` | JWT 서명 키 (Base64) | (개발용 기본값, 프로덕션 변경 필수) |
+| `BE_URL` | 단축 URL 생성에 사용되는 BE 공개 URL | `http://localhost:8080/` |
+| `FE_URL` | 만료 링크 리다이렉트에 사용되는 FE 공개 URL | `http://localhost:5173/` |
+
+### Frontend (Vite 빌드 시 주입)
+
+| 환경변수 | 설명 | 기본값 |
+|---|---|---|
+| `VITE_API_URL` | BE API 호출 기준 URL | `http://localhost:8080` |
 
 ---
 
-## 데이터베이스 설정 (직접 설치 시)
+## API 명세
 
-Docker 없이 로컬에 PostgreSQL/Redis를 직접 설치한 경우, `URLModifierBackend/src/main/resources/application.yaml`에서 연결 정보를 수정합니다.
+모든 인증 필요 요청은 `Authorization: Bearer {accessToken}` 헤더를 포함해야 합니다.
 
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/urlModifierDB
-    username: your_username
-    password: your_password
-  data:
-    redis:
-      host: localhost
-      port: 6379
+Swagger UI: `http://localhost:8080/swagger-ui.html`
+
+### 인증 (`/auth`)
+
+| 메서드 | 경로 | 인증 필요 | 설명 |
+|---|---|:---:|---|
+| POST | `/auth/register` | X | 회원가입 |
+| POST | `/auth/login` | X | 로그인 |
+| POST | `/auth/refresh` | X | Access Token 재발급 |
+| POST | `/auth/logout` | O | 로그아웃 |
+| DELETE | `/auth/withdraw` | O | 회원 탈퇴 |
+
+**POST /auth/register**
+```json
+// Request
+{ "email": "user@example.com", "nickName": "홍길동", "password": "password123" }
+// Response: 201 Created
 ```
+
+**POST /auth/login**
+```json
+// Request
+{ "email": "user@example.com", "password": "password123" }
+
+// Response 200
+{
+  "userId": "123456789",
+  "email": "user@example.com",
+  "nickName": "홍길동",
+  "jwtResponse": {
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ..."
+  }
+}
+```
+
+**POST /auth/refresh**
+```json
+// Request
+{ "refreshToken": "eyJ..." }
+
+// Response 200
+{ "accessToken": "eyJ...", "refreshToken": "eyJ..." }
+```
+
+**POST /auth/logout**
+```
+Authorization: Bearer {accessToken}
+// Response: 200 OK
+```
+
+**DELETE /auth/withdraw**
+```json
+// Authorization: Bearer {accessToken}
+// Request Body
+{ "password": "password123" }
+// Response: 200 OK
+// 처리 내용: 해당 사용자의 모든 URL 및 클릭 이벤트 삭제 후 회원 탈퇴
+```
+
+---
+
+### URL (`/short-urls`, `/{slug}`, `/urls`)
+
+| 메서드 | 경로 | 인증 필요 | 설명 |
+|---|---|:---:|---|
+| POST | `/short-urls` | 선택 | URL 단축 |
+| POST | `/short-urls/custom` | O | 커스텀 URL 생성 |
+| GET | `/short-urls/{slug}` | X | 슬러그 유효성 확인 |
+| GET | `/{slug}` | X | 원본 URL로 리다이렉트 |
+| GET | `/urls/{urlId}` | O | URL 상세 및 클릭 통계 조회 |
+| DELETE | `/urls/{urlId}` | O | URL 삭제 |
+
+**POST /short-urls**
+```json
+// Request
+{
+  "url": "https://example.com/very/long/url",
+  "expiresAt": "2025-12-31T23:59:59",  // 선택 (로그인 시에만 저장)
+  "maxClicks": 100                       // 선택 (로그인 시에만 저장)
+}
+
+// Response 201
+{
+  "id": "123456789",
+  "originUrl": "https://example.com/very/long/url",
+  "shortenedUrl": "http://mysite.com/aB3cD4",
+  "qrCode": "iVBORw0KGgo...",
+  "expiresAt": "2025-12-31T23:59:59",
+  "maxClicks": 100,
+  "clickCount": 0,
+  "expired": false
+}
+```
+
+**POST /short-urls/custom** (로그인 필수)
+```json
+// Request
+{
+  "originURL": "https://example.com/very/long/url",
+  "customURL": "my-link",              // 1~30자
+  "expiresAt": "2025-12-31T23:59:59", // 선택
+  "maxClicks": 100                     // 선택
+}
+// Response 201: POST /short-urls 와 동일한 형식
+```
+
+**GET /short-urls/{slug}**
+```json
+// Response 200
+{ "valid": true,  "originUrl": "https://example.com/..." }
+{ "valid": false, "originUrl": null }
+```
+
+**GET /{slug}**
+```
+유효한 슬러그 → 302 Found, Location: {원본 URL}
+만료된 슬러그 → 302 Found, Location: {FE_URL}?expired={slug}
+없는 슬러그   → 404 Not Found
+```
+
+**GET /urls/{urlId}** (본인 URL만 조회 가능)
+```json
+// Response 200
+{
+  "id": "123456789",
+  "originURL": "https://example.com/...",
+  "shortenedURL": "aB3cD4",
+  "qrCode": "iVBORw0KGgo...",
+  "createdAt": "2025-01-01T00:00:00",
+  "expiresAt": "2025-12-31T23:59:59",
+  "maxClicks": 100,
+  "clickEventList": [
+    {
+      "clickedAt": "2025-06-01T12:00:00",
+      "referrer": "https://google.com",
+      "userAgent": "Mozilla/5.0 ...",
+      "ipAddress": "1.2.3.4"
+    }
+  ]
+}
+```
+
+**DELETE /urls/{urlId}** (본인 URL만 삭제 가능)
+```
+Response: 202 Accepted
+처리 내용: 해당 URL의 클릭 이벤트 전체 삭제 후 URL 삭제
+```
+
+---
+
+### 마이페이지 (`/me`)
+
+| 메서드 | 경로 | 인증 필요 | 설명 |
+|---|---|:---:|---|
+| GET | `/me` | O | 내 정보 및 URL 목록 조회 |
+
+**GET /me**
+```json
+// Response 200
+{
+  "email": "user@example.com",
+  "nickname": "홍길동",
+  "urls": [
+    {
+      "id": "123456789",
+      "originUrl": "https://example.com/...",
+      "shortenedUrl": "http://mysite.com/aB3cD4",
+      "qrCode": "iVBORw0KGgo...",
+      "expiresAt": null,
+      "maxClicks": null,
+      "clickCount": 42,
+      "expired": false
+    }
+  ]
+}
+```
+
+---
+
+## 에러 응답 형식
+
+```json
+{
+  "errorCode": "ERROR_CODE",
+  "message": "사용자에게 표시할 메시지"
+}
+```
+
+---
+
+## 데이터베이스 스키마
+
+### `users`
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `id` | BIGINT (PK) | Snowflake ID |
+| `nick_name` | VARCHAR | 닉네임 |
+| `email` | VARCHAR (unique) | 이메일 |
+| `password` | VARCHAR | BCrypt 해시 |
+
+### `url`
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `id` | BIGINT (PK) | Snowflake ID |
+| `users` | BIGINT (FK, nullable) | 생성한 사용자 (비회원이면 NULL) |
+| `origin_url` | TEXT | 원본 URL |
+| `shortened_url` | VARCHAR(30) (unique) | Base62 인코딩 슬러그 |
+| `qr_code` | TEXT | QR 코드 (Base64 PNG) |
+| `created_at` | TIMESTAMP | 생성 일시 |
+| `expires_at` | TIMESTAMP (nullable) | 만료 일시 |
+| `max_clicks` | INTEGER (nullable) | 최대 클릭 수 |
+
+### `click_event`
+| 컬럼 | 타입 | 설명 |
+|---|---|---|
+| `id` | BIGINT (PK, auto) | |
+| `url_id` | BIGINT (FK) | 클릭된 URL |
+| `clicked_at` | TIMESTAMP | 클릭 일시 |
+| `referrer` | VARCHAR (nullable) | 유입 경로 |
+| `user_agent` | VARCHAR (nullable) | 브라우저 정보 |
+| `ip_address` | VARCHAR (nullable) | 클라이언트 IP |

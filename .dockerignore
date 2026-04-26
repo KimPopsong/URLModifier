@@ -1,0 +1,6 @@
+URLModifierFrontend/
+.git/
+URLModifierBackend/.gradle/
+URLModifierBackend/build/
+URLModifierBackend/.idea/
+URLModifierBackend/bin/
