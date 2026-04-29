@@ -154,7 +154,7 @@
                   <div class="result-content">
                     <div class="shortened-url-container">
                       <a
-                        :href="shortenedUrl"
+                        :href="'https://' + shortenedUrl"
                         target="_blank"
                         class="shortened-url"
                         rel="noopener noreferrer"
@@ -951,7 +951,7 @@ export default {
     },
 
     clickUrl(url) {
-      navigator.clipboard.writeText(API_BASE_URL + '/' + url.shortenedUrl)
+      navigator.clipboard.writeText('https://' + url.shortenedUrl)
     },
 
     async showUrlDetail(url) {
