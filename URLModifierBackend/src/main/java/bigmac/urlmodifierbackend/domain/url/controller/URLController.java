@@ -42,10 +42,11 @@ public class URLController {
         @RequestBody URLRequest urlRequest) {
         URL url = urlService.makeURLShort(user, urlRequest);
 
+        String fullUrl = BE_BASE_URL + url.getShortenedURL();
         URLResponse response = URLResponse.builder()
             .id(String.valueOf(url.getId()))
             .originUrl(urlRequest.getUrl())
-            .shortenedUrl(BE_BASE_URL + url.getShortenedURL())
+            .shortenedUrl(fullUrl.replaceFirst("https?://", ""))
             .qrCode(url.getQrCode())
             .expiresAt(url.getExpiresAt())
             .maxClicks(url.getMaxClicks())
@@ -53,7 +54,7 @@ public class URLController {
             .expired(false)
             .build();
 
-        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(response);
+        return ResponseEntity.created(URI.create(fullUrl)).body(response);
     }
 
     @PostMapping("/short-urls/custom")
@@ -65,10 +66,11 @@ public class URLController {
 
         URL url = urlService.makeCustomURL(user, customURLRequest);
 
+        String fullUrl = BE_BASE_URL + url.getShortenedURL();
         URLResponse response = URLResponse.builder()
             .id(String.valueOf(url.getId()))
             .originUrl(url.getOriginURL())
-            .shortenedUrl(BE_BASE_URL + url.getShortenedURL())
+            .shortenedUrl(fullUrl.replaceFirst("https?://", ""))
             .qrCode(url.getQrCode())
             .expiresAt(url.getExpiresAt())
             .maxClicks(url.getMaxClicks())
@@ -76,7 +78,7 @@ public class URLController {
             .expired(false)
             .build();
 
-        return ResponseEntity.created(URI.create(BE_BASE_URL + url.getShortenedURL())).body(response);
+        return ResponseEntity.created(URI.create(fullUrl)).body(response);
     }
 
     @GetMapping("/short-urls/{shortUrl}")

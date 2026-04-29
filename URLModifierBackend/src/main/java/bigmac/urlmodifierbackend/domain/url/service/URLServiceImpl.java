@@ -248,7 +248,8 @@ public class URLServiceImpl implements URLService {
             .map(ClickEventResponse::from).collect(java.util.stream.Collectors.toList());
 
         return new URLDetailResponse(String.valueOf(url.getId()), url.getOriginURL(),
-            url.getShortenedURL(), url.getQrCode(), url.getCreatedAt(), url.getExpiresAt(),
+            (BE_BASE_URL + url.getShortenedURL()).replaceFirst("https?://", ""),
+            url.getQrCode(), url.getCreatedAt(), url.getExpiresAt(),
             url.getMaxClicks(), allClickEvent);
     }
 

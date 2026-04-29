@@ -10,6 +10,7 @@ import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import java.time.LocalDateTime;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -21,6 +22,9 @@ public class MyPageServiceImpl implements MyPageService {
     private final UserRepository userRepository;
     private final URLRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
+
+    @Value("${custom.BE_BASE_URL}")
+    private String BE_BASE_URL;
 
     @Override
     public MyPageResponse getMyPage(User user) {
@@ -43,7 +47,7 @@ public class MyPageServiceImpl implements MyPageService {
         return URLResponse.builder()
             .id(String.valueOf(url.getId()))
             .originUrl(url.getOriginURL())
-            .shortenedUrl(url.getShortenedURL())
+            .shortenedUrl((BE_BASE_URL + url.getShortenedURL()).replaceFirst("https?://", ""))
             .qrCode(url.getQrCode())
             .expiresAt(url.getExpiresAt())
             .maxClicks(url.getMaxClicks())
