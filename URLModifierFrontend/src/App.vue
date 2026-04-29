@@ -951,7 +951,7 @@ export default {
     },
 
     clickUrl(url) {
-      navigator.clipboard.writeText('https://' + url.shortenedUrl)
+      navigator.clipboard.writeText(url.shortenedUrl)
     },
 
     async showUrlDetail(url) {
