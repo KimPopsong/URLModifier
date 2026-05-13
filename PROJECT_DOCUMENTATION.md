@@ -7,6 +7,9 @@
 
 URLModifier는 URL 단축 서비스로, 긴 URL을 짧은 URL로 변환하고 QR 코드를 생성하며, 클릭 통계를 제공하는 풀스택 웹 애플리케이션입니다.
 
+- **도메인**: urlcut.kr
+- **프로토콜**: HTTPS (Let's Encrypt 인증서, 만료: 2026-07-28)
+
 ---
 
 ## 기술 스택
@@ -31,9 +34,10 @@ URLModifier는 URL 단축 서비스로, 긴 URL을 짧은 URL로 변환하고 QR
 - **구조**: `App.vue` 단일 컴포넌트로 모든 UI 구현, LocalStorage로 토큰 관리
 
 ### 인프라
-- **컨테이너화**: Docker, Docker Compose
-- **이미지**: `eclipse-temurin:17-jdk-slim`
-- **docker-compose 서비스**: `db`(PostgreSQL 14), `redis`(Redis 7)
+- **컨테이너화**: Docker, Docker Compose (바이너리 직접 설치)
+- **Nginx**: 1.27-alpine — FE 정적 파일 서빙 + BE 리버스 프록시
+- **Certbot**: Let's Encrypt 인증서 발급 및 자동 갱신 (12시간마다 `certbot renew`)
+- **docker-compose 서비스**: `app`(Spring Boot), `db`(PostgreSQL 14), `redis`(Redis 7), `nginx`, `certbot`, `fe-build`
 
 ---
 
@@ -41,10 +45,16 @@ URLModifier는 URL 단축 서비스로, 긴 URL을 짧은 URL로 변환하고 QR
 
 ```
 URLModifier/
-├── docker-compose.yaml              # DB + Redis 컨테이너 정의
+├── docker-compose.yaml              # 전체 서비스 정의 (app + db + redis + nginx + certbot + fe-build)
 ├── Dockerfile                       # 백엔드 이미지 빌드
 ├── PROJECT_DOCUMENTATION.md        # 이 파일
 ├── README.md                        # 빠른 시작 가이드
+├── nginx/
+│   └── conf.d/
+│       └── default.conf             # HTTP→HTTPS 리다이렉트 + HTTPS 서버 블록
+├── certbot/
+│   ├── conf/                        # Let's Encrypt 인증서 (마운트)
+│   └── www/                         # ACME HTTP-01 challenge (마운트)
 ├── URLModifierBackend/
 │   ├── build.gradle
 │   └── src/main/java/bigmac/urlmodifierbackend/
@@ -96,7 +106,7 @@ URLModifier/
 | `id` | BIGINT (PK) | Snowflake 알고리즘 생성 |
 | `users` | BIGINT (FK, nullable) | 사용자 ID (비회원은 null) |
 | `origin_url` | TEXT | 원본 URL |
-| `shortened_url` | VARCHAR(30) (UNIQUE) | Base62 인코딩된 단축 코드 |
+| `shortened_url` | VARCHAR(30) (UNIQUE) | Base62 인코딩된 단축 슬러그 (slug만 저장, 도메인 제외) |
 | `qr_code` | TEXT | Base64 PNG 이미지 |
 | `created_at` | TIMESTAMP | 생성 일시 |
 | `expires_at` | TIMESTAMP (nullable) | 만료 일시 (null이면 무제한) |
@@ -113,6 +123,21 @@ URLModifier/
 | `user_agent` | TEXT (nullable) | User-Agent 문자열 |
 | `ip_address` | VARCHAR (nullable) | IP 주소 |
 | `clicked_at` | TIMESTAMP | 클릭 일시 |
+
+---
+
+## 단축 URL 표시 규칙
+
+DB의 `shortened_url` 컬럼에는 slug만 저장 (예: `abc123`). 응답/표시 시 도메인을 붙여 반환.
+
+| 용도 | 형식 | 비고 |
+|------|------|------|
+| API 응답 `shortenedUrl` | `urlcut.kr/abc123` | `https://` 제거 (`replaceFirst("https?://", "")`) |
+| 화면 표시 | `urlcut.kr/abc123` | |
+| 클립보드 복사 | `urlcut.kr/abc123` | |
+| `<a href>` | `https://urlcut.kr/abc123` | 브라우저 상대경로 방지 |
+| QR코드 생성 기준 | `https://urlcut.kr/abc123` | 스캔 시 정상 동작 보장 |
+| Location 헤더 (리다이렉트) | `https://urlcut.kr/abc123` | |
 
 ---
 
@@ -163,7 +188,7 @@ URLModifier/
   "nickname": "사용자명",
   "email": "user@example.com",
   "urls": [
-    { "id": "123456789", "originUrl": "...", "shortenedUrl": "http://localhost:8080/abc123", "createdAt": "..." }
+    { "id": "123456789", "originUrl": "...", "shortenedUrl": "urlcut.kr/abc123", "createdAt": "..." }
   ]
 }
 ```
@@ -182,7 +207,7 @@ URLModifier/
 {
   "id": "123456789",
   "originUrl": "https://example.com/very/long/url",
-  "shortenedUrl": "http://localhost:8080/abc123",
+  "shortenedUrl": "urlcut.kr/abc123",
   "qrCode": "iVBORw0KGgoAAAANSUhEUg...",
   "expiresAt": "2026-12-31T23:59:59",
   "maxClicks": 100,
@@ -219,7 +244,7 @@ URLModifier/
 {
   "id": "123456789",
   "originURL": "https://...",
-  "shortenedURL": "abc123",
+  "shortenedURL": "urlcut.kr/abc123",
   "qrCode": "iVBORw0KGgo...",
   "createdAt": "2024-01-01T00:00:00",
   "expiresAt": "2026-12-31T23:59:59",
@@ -272,6 +297,7 @@ maxClicks != null && clickCount >= maxClicks → URLExpiredException
 | `JWT_SECRET` | (개발 기본값) | JWT 서명용 시크릿 키 (Base64 인코딩) |
 | `BE_URL` | `http://localhost:8080/` | 백엔드 Base URL (단축 URL 접두어, QR 코드 기준) |
 | `FE_URL` | `http://localhost:5173/` | 프론트엔드 Base URL (만료 리디렉션 대상) |
+| `PUBLIC_URL` | — | 운영 배포 시 `https://urlcut.kr` 으로 설정 |
 
 ---
 
@@ -294,11 +320,22 @@ npm run dev
 # → http://localhost:5173
 ```
 
-### Docker 전체 실행 (백엔드 JAR 필요)
+### 운영 서버 배포
 ```bash
-cd URLModifierBackend && ./gradlew bootJar
-cd ..
-docker compose up -d
+# 전체 재빌드 및 실행
+git pull
+docker compose up -d --build
+
+# 백엔드만 재빌드
+git pull
+docker compose up -d --build app
+
+# 프론트엔드만 재빌드
+git pull
+docker compose up -d --build fe-build nginx
+
+# nginx 설정만 반영 (코드 변경 없을 때)
+docker compose restart nginx
 ```
 
 ---
@@ -312,6 +349,7 @@ docker compose up -d
 - **단축 URL 충돌**: Snowflake 특성상 사실상 충돌 없음. 안전망으로 `do-while` 재시도 로직 존재.
 - **RabbitMQ**: `build.gradle`에 의존성은 있지만 `docker-compose.yaml`에 서비스 미포함. 로컬 실행 시 관련 설정 확인 필요.
 - **프론트엔드**: 모든 UI가 `App.vue` 한 파일에 구현됨. 기능 분리 시 컴포넌트 분리 고려.
+- **Certbot 재발급 시**: `docker-compose.yaml`의 certbot `entrypoint`가 `certbot renew` 루프로 지정되어 있어, `certonly` 실행 시 `--entrypoint certbot` 오버라이드 필수.
 
 ---
 
@@ -330,24 +368,25 @@ docker compose up -d
 
 ### 완료된 작업
 - [x] WSL2 + Ubuntu 22.04 설치
-- [x] Docker Engine 29.4.0 / Docker Compose 5.1.3 설치
+- [x] Docker Engine 29.4.0 설치
+- [x] Docker Compose 설치 (바이너리 직접 설치 — `apt` 저장소 미등록으로 플러그인 설치 불가)
 - [x] WSL2 자동 시작 등록 (Windows 작업 스케줄러)
 - [x] Windows 자동 업데이트 비활성화
 - [x] 프로젝트 git clone (`~/URLModifier`)
 - [x] Java 17 설치 (`openjdk-17-jdk`)
-- [x] 백엔드 JAR 빌드 (`./gradlew bootJar`)
-- [x] `docker compose up -d` 실행 성공 (app + db + redis)
+- [x] `docker compose up -d` 실행 성공 (app + db + redis + nginx + certbot)
+- [x] 포트 포워딩 설정 완료
+- [x] `.env` 파일 작성 완료
+- [x] Let's Encrypt 인증서 발급 완료 (`urlcut.kr`, 만료: 2026-07-28)
+- [x] HTTPS 서비스 운영 중
 
 ### 서버 실행 방법 (Ubuntu 터미널)
 ```bash
 cd ~/URLModifier
 
-# 빌드 후 실행 (코드 변경 시)
-cd URLModifierBackend && ./gradlew bootJar && cd ..
+# 전체 재빌드 후 실행 (코드 변경 시)
+git pull
 docker compose up -d --build
-
-# 재시작만 할 경우
-docker compose up -d
 
 # 상태 확인
 docker compose ps
@@ -356,31 +395,29 @@ docker compose ps
 docker compose logs -f app
 ```
 
-### 진행 중인 작업
-- [ ] 포트 포워딩 (공유기 설정) — 미니 PC 내부 IP 확인 후 진행
-- [ ] `.env` 파일 작성 (운영용 JWT_SECRET, DB_PASSWORD 등으로 교체)
-  - 필요 항목: `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `BE_URL`, `FE_URL`, `REDIS_PASSWORD`
-  - `.env` 파일은 git에 커밋하지 않도록 `.gitignore` 확인 필요
-
 ---
 
 ## 향후 작업 (TODO)
 
-### 1. 포트 포워딩
-- 미니 PC 내부 IP 확인: `hostname -I`
-- 공유기 관리 페이지에서 포트 포워딩 설정
-  - 외부 `8080` → 미니 PC `8080` (백엔드 API)
-  - 외부 `80`, `443` → 미니 PC `80` (Nginx, 나중에)
-
-### 2. CI/CD 구축
+### 1. CI/CD 구축
 - 미니 PC에서 동작하는 CI/CD 파이프라인 구축
 - 예상 구성: 코드 Push → 빌드(`./gradlew bootJar`) → Docker 이미지 재빌드 → 컨테이너 재시작
 
-### 3. 환경 변수 파일 (.env) 작성
-- 현재 JWT_SECRET은 개발용 기본값 사용 중 — 운영 전 반드시 교체 필요
-- `.env` 파일 생성 후 `docker compose up -d` 재실행하면 자동 적용
+### 2. 마이페이지 URL 복사 알림
+- 마이페이지에서 URL 클릭 복사 시 "복사되었습니다" 알림창 표시
+- 현재 메인 페이지의 `copyToClipboard`에는 `isCopied` 상태로 복사 완료 표시가 있으나, 마이페이지 `clickUrl()`에는 없음
 
-### 4. 도메인 및 HTTPS 적용 (선택)
-- 도메인 구매 후 DNS 설정 → 공인 IP 연결
-- Nginx 리버스 프록시 + Let's Encrypt 인증서로 HTTPS 적용
-- 적용 후 `BE_URL`, `FE_URL` 환경 변수 도메인으로 변경 (QR 코드 기준 URL 영향)
+### 3. 구글 검색 노출 설정
+- 구글 서치 콘솔 등록 및 sitemap 제출
+- `<meta>` 태그 (description, og 태그 등) 정비
+
+### 4. 아이콘 및 이름 통일
+- 파비콘, 로고, 서비스명 등 UI 전반 통일 및 수정
+
+### 5. 에러 창 개선
+- 현재 에러 처리가 일관되지 않음
+- 사용자에게 표시되는 에러 UI 컴포넌트 통일
+
+### 6. Discord 알림 연동
+- 서버 이상 발생 시 Discord 웹훅으로 알림 수신
+- 대상 이벤트 예시: 컨테이너 다운, 500 에러 다수 발생, 인증서 만료 임박 등

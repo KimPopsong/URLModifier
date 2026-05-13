@@ -6,7 +6,7 @@
         <div class="brand" @click="openShorten()">
           <span class="brand-icon">🔗</span>
           <div class="brand-text">
-            <span class="brand-title">URL Modifier</span>
+            <span class="brand-title">URLcut</span>
             <span class="brand-subtitle">Smart URL Shortener</span>
           </div>
         </div>
@@ -269,7 +269,7 @@
         <transition :name="transitionName">
           <aside class="card side-card" v-if="activeTab === 'shorten'">
             <div class="card-body">
-              <h2 class="side-title">URL Modifier를 더 잘 활용하는 법</h2>
+              <h2 class="side-title">URLcut을 더 잘 활용하는 법</h2>
               <ul class="feature-list">
                 <li>
                   <h3>✨ 단축 &amp; QR 코드</h3>
@@ -504,7 +504,7 @@
     </transition>
 
     <footer class="app-footer">
-      <p>&copy; {{ new Date().getFullYear() }} URL Modifier · kimds5344@naver.com</p>
+      <p>&copy; {{ new Date().getFullYear() }} URLcut · kimds5344@naver.com</p>
     </footer>
   </div>
 </template>
