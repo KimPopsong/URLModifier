@@ -973,12 +973,15 @@ export default {
     async showUrlDetail(url) {
       if (!this.isLoggedIn) return
 
+      // 버전 카운터: await 이후에도 최신 요청인지 확인해 경쟁 조건 방지
+      this._reqVersion = (this._reqVersion || 0) + 1
+      const myVersion = this._reqVersion
+
       clearTimeout(this.chartCreateTimer)
       this.chartCreateTimer = null
 
       const panelWasOpen = !!this.selectedUrlDetail
 
-      // 애니메이션 중단 후 destroy (stop() 없이 destroy하면 진행 중인 프레임이 null ctx 참조)
       if (this.chartInstance) {
         this.chartInstance.stop()
         this.chartInstance.destroy()
@@ -993,26 +996,31 @@ export default {
 
       try {
         const res = await axios.get(`${API_BASE_URL}/urls/${url.id}`)
+
+        // 더 최신 요청이 생겼으면 이 요청 결과는 버림
+        if (myVersion !== this._reqVersion) return
+
         this.selectedUrlDetail = res.data
         this.urlDetailLoading = false
 
         if (panelWasOpen) {
-          // 캔버스가 이미 DOM에 있으므로 즉시 차트 데이터 교체
           this.$nextTick(() => {
+            if (myVersion !== this._reqVersion) return
             if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
               this.createChart()
             }
           })
         } else {
-          // 슬라이드 인 애니메이션(0.5s) 완료 후 차트 생성
           this.chartCreateTimer = setTimeout(() => {
             this.chartCreateTimer = null
+            if (myVersion !== this._reqVersion) return
             if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
               this.createChart()
             }
           }, 600)
         }
       } catch (err) {
+        if (myVersion !== this._reqVersion) return
         this.urlDetailLoading = false
         console.error('URL detail error:', err)
         this.myPageError = this.getSafeErrorMessage(err, 'URL 통계를 불러오는 데 실패했습니다.')
@@ -1166,6 +1174,7 @@ export default {
           ],
         },
         options: {
+          animation: false,
           responsive: true,
           maintainAspectRatio: false,
           plugins: {
