@@ -1,7 +1,7 @@
 package bigmac.urlmodifierbackend.domain.url.dto.response;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -18,5 +18,6 @@ public class URLDetailResponse {
     private LocalDateTime createdAt;
     private LocalDateTime expiresAt;
     private Integer maxClicks;
-    private List<ClickEventResponse> clickEventList;
+    private long totalClicks;
+    private Map<String, Long> dailyClicks;
 }

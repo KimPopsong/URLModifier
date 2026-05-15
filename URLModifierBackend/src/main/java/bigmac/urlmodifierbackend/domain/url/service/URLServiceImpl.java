@@ -3,7 +3,6 @@ package bigmac.urlmodifierbackend.domain.url.service;
 import bigmac.urlmodifierbackend.domain.url.dto.URLCacheDto;
 import bigmac.urlmodifierbackend.domain.url.dto.request.CustomURLRequest;
 import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
-import bigmac.urlmodifierbackend.domain.url.dto.response.ClickEventResponse;
 import bigmac.urlmodifierbackend.domain.url.dto.response.URLDetailResponse;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.exception.URLExpiredException;
@@ -20,9 +19,11 @@ import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -217,8 +218,10 @@ public class URLServiceImpl implements URLService {
             ClickEvent.builder().url(urlRef).referrer(referrer).ipAddress(ipAddress)
                 .userAgent(userAgent).build());
 
-        // Redis 클릭 카운터 증가
-        stringRedisTemplate.opsForValue().increment(URL_CLICK_COUNT + urlId);
+        // maxClicks 있는 URL만 Redis 카운터 증가
+        if (urlForReturn.getMaxClicks() != null) {
+            stringRedisTemplate.opsForValue().increment(URL_CLICK_COUNT + urlId);
+        }
 
         return urlForReturn;
     }
@@ -244,13 +247,18 @@ public class URLServiceImpl implements URLService {
         URL url = findUrlOrThrowException(urlId);
         this.validateUrlOwnership(user, url);
 
-        List<ClickEventResponse> allClickEvent = clickEventRepository.findAllByUrl(url).stream()
-            .map(ClickEventResponse::from).collect(java.util.stream.Collectors.toList());
+        List<ClickEvent> events = clickEventRepository.findAllByUrl(url);
+
+        Map<String, Long> dailyClicks = events.stream()
+            .collect(Collectors.groupingBy(
+                e -> e.getClickedAt().toLocalDate().toString(),
+                Collectors.counting()
+            ));
 
         return new URLDetailResponse(String.valueOf(url.getId()), url.getOriginURL(),
             (BE_BASE_URL + url.getShortenedURL()).replaceFirst("https?://", ""),
             url.getQrCode(), url.getCreatedAt(), url.getExpiresAt(),
-            url.getMaxClicks(), allClickEvent);
+            url.getMaxClicks(), events.size(), dailyClicks);
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────
@@ -297,7 +305,7 @@ public class URLServiceImpl implements URLService {
         }
         // 캐시 미스: DB에서 현재 클릭 수를 읽어 초기화 (동시 요청 대비 setIfAbsent 사용)
         long dbCount = clickEventRepository.countByUrl(urlRef);
-        stringRedisTemplate.opsForValue().setIfAbsent(countKey, String.valueOf(dbCount));
+        stringRedisTemplate.opsForValue().setIfAbsent(countKey, String.valueOf(dbCount), URL_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
         return dbCount;
     }
 
