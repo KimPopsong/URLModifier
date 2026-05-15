@@ -312,7 +312,13 @@
                 </button>
               </div>
 
-              <div v-if="selectedUrlDetail">
+              <div v-if="selectedUrlDetail" style="position: relative">
+                <transition name="fade">
+                  <div v-if="urlDetailLoading" class="detail-loading-overlay">
+                    <span class="spinner spinner-dark"></span>
+                  </div>
+                </transition>
+
                 <p class="detail-label">원본 URL</p>
                 <p class="detail-value">{{ selectedUrlDetail.originURL }}</p>
                 <br />
@@ -325,7 +331,7 @@
                 <p class="detail-value">{{ formatDateTime(selectedUrlDetail.createdAt) }}</p>
                 <br />
                 <p class="detail-label">총 클릭 수</p>
-                <p class="detail-value">{{ selectedUrlDetail.clickEventList?.length || 0 }}회</p>
+                <p class="detail-value">{{ selectedUrlDetail.totalClicks || 0 }}회</p>
 
                 <template v-if="selectedUrlDetail.expiresAt || selectedUrlDetail.maxClicks">
                   <br />
@@ -341,9 +347,7 @@
                 </template>
 
                 <div
-                  v-if="
-                    selectedUrlDetail.clickEventList && selectedUrlDetail.clickEventList.length > 0
-                  "
+                  v-if="selectedUrlDetail.dailyClicks && Object.keys(selectedUrlDetail.dailyClicks).length > 0"
                   class="chart-container"
                 >
                   <canvas ref="chartCanvas"></canvas>
@@ -637,7 +641,9 @@ export default {
       myPageLoading: false,
       myPageError: '',
       selectedUrlDetail: null,
+      urlDetailLoading: false,
       chartInstance: null,
+      chartCreateTimer: null,
       copiedUrlId: null,
 
       // 회원 탈퇴
@@ -966,33 +972,62 @@ export default {
 
     async showUrlDetail(url) {
       if (!this.isLoggedIn) return
-      this.selectedUrlDetail = null
-      // 기존 차트 인스턴스 제거
+
+      clearTimeout(this.chartCreateTimer)
+      this.chartCreateTimer = null
+
+      const panelWasOpen = !!this.selectedUrlDetail
+
+      // 애니메이션 중단 후 destroy (stop() 없이 destroy하면 진행 중인 프레임이 null ctx 참조)
       if (this.chartInstance) {
+        this.chartInstance.stop()
         this.chartInstance.destroy()
         this.chartInstance = null
       }
+
+      if (panelWasOpen) {
+        this.urlDetailLoading = true
+      } else {
+        this.selectedUrlDetail = null
+      }
+
       try {
         const res = await axios.get(`${API_BASE_URL}/urls/${url.id}`)
         this.selectedUrlDetail = res.data
-        // 차트 생성은 nextTick에서 수행
-        this.$nextTick(() => {
-          if (this.selectedUrlDetail?.clickEventList?.length > 0) {
-            this.createChart()
-          }
-        })
+        this.urlDetailLoading = false
+
+        if (panelWasOpen) {
+          // 캔버스가 이미 DOM에 있으므로 즉시 차트 데이터 교체
+          this.$nextTick(() => {
+            if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
+              this.createChart()
+            }
+          })
+        } else {
+          // 슬라이드 인 애니메이션(0.5s) 완료 후 차트 생성
+          this.chartCreateTimer = setTimeout(() => {
+            this.chartCreateTimer = null
+            if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
+              this.createChart()
+            }
+          }, 600)
+        }
       } catch (err) {
+        this.urlDetailLoading = false
         console.error('URL detail error:', err)
         this.myPageError = this.getSafeErrorMessage(err, 'URL 통계를 불러오는 데 실패했습니다.')
       }
     },
 
     closeUrlDetail() {
+      clearTimeout(this.chartCreateTimer)
+      this.chartCreateTimer = null
       if (this.chartInstance) {
         this.chartInstance.destroy()
         this.chartInstance = null
       }
       this.selectedUrlDetail = null
+      this.urlDetailLoading = false
     },
 
     async deleteUrl(url) {
@@ -1066,49 +1101,46 @@ export default {
     },
 
     createChart() {
-      if (!this.$refs.chartCanvas || !this.selectedUrlDetail?.clickEventList) return
+      if (!this.$refs.chartCanvas || !this.selectedUrlDetail?.dailyClicks) return
 
-      // 기존 차트 제거
-      if (this.chartInstance) {
-        this.chartInstance.destroy()
-      }
+      const dailyClicks = this.selectedUrlDetail.dailyClicks
+      const ONE_DAY = 86400000
 
-      const clickEvents = this.selectedUrlDetail.clickEventList
-
-      // 시간대별로 그룹화 (시간 단위)
+      // ISO 날짜 문자열 → timestamp 변환
       const timeMap = new Map()
-
-      clickEvents.forEach((event) => {
-        const date = new Date(event.clickedAt)
-        // 일 단위로 그룹화 (YYYY-MM-DD)
-        const timeKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
-        timeMap.set(timeKey, (timeMap.get(timeKey) || 0) + 1)
+      Object.entries(dailyClicks).forEach(([dateStr, count]) => {
+        timeMap.set(new Date(dateStr).getTime(), count)
       })
 
-      // 최소/최대 날짜 구하기
-      const times = Array.from(timeMap.keys())
-      if (times.length === 0) return
+      if (timeMap.size === 0) return
 
-      const minTime = Math.min(...times)
-      const maxTime = Math.max(...times)
+      let minTime = Math.min(...timeMap.keys())
+      let maxTime = Math.max(...timeMap.keys())
+
+      // 단일 날짜인 경우 앞뒤 하루씩 확장
+      if (minTime === maxTime) {
+        minTime -= ONE_DAY
+        maxTime += ONE_DAY
+      }
 
       const labels = []
       const data = []
 
-      // 빈 날짜 채우기 (시작일 ~ 종료일)
       const currentDate = new Date(minTime)
       const endDate = new Date(maxTime)
 
       while (currentDate <= endDate) {
-        const timeKey = currentDate.getTime()
         labels.push(
-          currentDate.toLocaleString('ko-KR', {
-            month: 'short',
-            day: 'numeric',
-          }),
+          currentDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric' }),
         )
-        data.push(timeMap.get(timeKey) || 0)
+        data.push(timeMap.get(currentDate.getTime()) || 0)
         currentDate.setDate(currentDate.getDate() + 1)
+      }
+
+      if (this.chartInstance) {
+        this.chartInstance.stop()
+        this.chartInstance.destroy()
+        this.chartInstance = null
       }
 
       const ctx = this.$refs.chartCanvas.getContext('2d')
@@ -1150,9 +1182,6 @@ export default {
               displayColors: false,
             },
             zoom: {
-              limits: {
-                y: { min: 0 },
-              },
               zoom: {
                 wheel: {
                   enabled: true,
@@ -1161,11 +1190,11 @@ export default {
                 pinch: {
                   enabled: true,
                 },
-                mode: 'xy',
+                mode: 'x',
               },
               pan: {
                 enabled: true,
-                mode: 'xy',
+                mode: 'x',
               },
             },
           },
@@ -1862,6 +1891,17 @@ export default {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   row-gap: 0.35rem;
+}
+
+.detail-loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.75);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  border-radius: 8px;
 }
 
 .detail-label {
