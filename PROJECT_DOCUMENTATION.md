@@ -407,7 +407,7 @@ docker compose logs -f app
 - 마이페이지에서 URL 클릭 복사 시 "복사되었습니다" 알림창 표시
 - 현재 메인 페이지의 `copyToClipboard`에는 `isCopied` 상태로 복사 완료 표시가 있으나, 마이페이지 `clickUrl()`에는 없음
 
-### 3. 구글 검색 노출 설정
+### ~~3. 구글 검색 노출 설정~~ ✅ 완료
 - 구글 서치 콘솔 등록 및 sitemap 제출
 - `<meta>` 태그 (description, og 태그 등) 정비
 
