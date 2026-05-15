@@ -399,6 +399,14 @@ docker compose logs -f app
 
 ## 향후 작업 (TODO)
 
+### 백엔드 기능 확장 아이디어
+
+- **악성 URL 탐지**: 단축 대상 URL이 피싱·멀웨어 사이트인지 확인 (예: Google Safe Browsing API 연동)
+- **Developer API**: API 키 발급으로 외부 애플리케이션에서 URL 단축·관리 가능하도록 REST API 제공
+- **CAPTCHA**: 비회원 요청에 봇 방지 적용 (로그인 유저는 제외)
+- **최근 URL 랭킹**: 클릭 수 기준 인기 단축 URL 랭킹 제공
+- **테스트 코드**: 서비스·컨트롤러 레이어 단위/통합 테스트 작성
+
 ### 1. CI/CD 구축
 - 미니 PC에서 동작하는 CI/CD 파이프라인 구축
 - 예상 구성: 코드 Push → 빌드(`./gradlew bootJar`) → Docker 이미지 재빌드 → 컨테이너 재시작

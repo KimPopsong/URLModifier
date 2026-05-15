@@ -4,7 +4,7 @@
     <header class="app-header">
       <div class="header-inner">
         <div class="brand" @click="openShorten()">
-          <span class="brand-icon">🔗</span>
+          <img src="/logo.png" alt="URLcut" class="brand-icon" />
           <div class="brand-text">
             <span class="brand-title">URLcut</span>
             <span class="brand-subtitle">Smart URL Shortener</span>
@@ -228,9 +228,14 @@
                   <div class="url-list">
                     <div v-for="url in myPage.urls" :key="url.id" class="url-item">
                       <div class="url-main">
-                        <a href="javascript:void(0)" class="url-short" @click="clickUrl(url)">
-                          {{ url.shortenedUrl }}
-                        </a>
+                        <div class="url-short-row">
+                          <a href="javascript:void(0)" class="url-short" @click="clickUrl(url)">
+                            {{ url.shortenedUrl }}
+                          </a>
+                          <transition name="fade">
+                            <span v-if="copiedUrlId === url.id" class="copied-badge">✓ 복사됨</span>
+                          </transition>
+                        </div>
                         <p class="url-origin">{{ url.originUrl }}</p>
                         <div class="url-tags">
                           <span v-if="url.expired" class="tag tag-expired">만료됨</span>
@@ -549,7 +554,7 @@ axios.interceptors.response.use(
   async (error) => {
     const status = error?.response?.status
 
-    if (status === 401 && !error.config._isRetry) {
+    if (status === 401 && !error.config._isRetry && !error.config.url?.includes('/auth/login')) {
       const storedRefresh = localStorage.getItem('refreshToken')
 
       if (storedRefresh && !isRefreshing) {
@@ -633,6 +638,7 @@ export default {
       myPageError: '',
       selectedUrlDetail: null,
       chartInstance: null,
+      copiedUrlId: null,
 
       // 회원 탈퇴
       showWithdrawModal: false,
@@ -952,6 +958,10 @@ export default {
 
     clickUrl(url) {
       navigator.clipboard.writeText(url.shortenedUrl)
+      this.copiedUrlId = url.id
+      setTimeout(() => {
+        this.copiedUrlId = null
+      }, 2000)
     },
 
     async showUrlDetail(url) {
@@ -1249,7 +1259,9 @@ export default {
 }
 
 .brand-icon {
-  font-size: 1.6rem;
+  width: 2rem;
+  height: 2rem;
+  object-fit: contain;
 }
 
 .brand-text {
@@ -1797,6 +1809,19 @@ export default {
 .url-short:hover {
   color: #6366f1;
   text-decoration: underline;
+}
+
+.url-short-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.copied-badge {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #059669;
+  white-space: nowrap;
 }
 
 .url-origin {
