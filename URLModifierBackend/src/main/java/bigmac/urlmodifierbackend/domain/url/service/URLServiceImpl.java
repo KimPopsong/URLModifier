@@ -18,10 +18,12 @@ import bigmac.urlmodifierbackend.global.util.QRCodeUtil;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
 import java.util.Base64;
-import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,9 @@ public class URLServiceImpl implements URLService {
     private static final String URL_SLUG_CACHE = "url:slug:";
     private static final String URL_CLICK_COUNT = "url:clicks:";
     private static final long URL_CACHE_TTL_SECONDS = 3600L;
+    // 애플리케이션 경로와 겹쳐 리다이렉트가 불가능해지는 슬러그
+    private static final Set<String> RESERVED_SLUGS = Set.of("short-urls", "urls", "auth", "me",
+        "swagger-ui", "v3", "api-docs", "swagger-resources", "webjars", "actuator", "error");
     private final URLValidateServiceImpl urlValidateService;
     private final URLRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
@@ -61,52 +66,33 @@ public class URLServiceImpl implements URLService {
     public URL makeURLShort(@Nullable User user, URLRequest urlRequest) {
         String originURL = urlRequest.getUrl();
 
-        if (user != null) {
-            Optional<URL> existingUserURL = urlRepository.findByUserAndOriginURL(user, originURL);
+        Optional<URL> existingURL = (user != null)
+            ? urlRepository.findByUserAndOriginURL(user, originURL)
+            : urlRepository.findFirstByOriginURLAndUserIsNull(originURL);
 
-            if (existingUserURL.isPresent()) {
-                return existingUserURL.get();
-            }
-
-            urlValidateService.validateOriginalUrl(originURL);
-
-            long id = idGenerator.nextId();
-            String shortenedURL;
-            do {
-                shortenedURL = Base62.encode(id);
-            } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
-
-            String fullShortenedURL = BE_BASE_URL + shortenedURL;
-            String qrCodeBase64 = generateQRCode(fullShortenedURL);
-
-            URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
-            newUrl.setExpiresAt(urlRequest.getExpiresAt());
-            newUrl.setMaxClicks(urlRequest.getMaxClicks());
-
-            URL saved = urlRepository.save(newUrl);
-            cacheURL(saved);
-            return saved;
-        }
-
-        Optional<URL> anonymousURL = urlRepository.findFirstByOriginURLAndUserIsNull(originURL);
-
-        if (anonymousURL.isPresent()) {
-            return anonymousURL.get();
+        if (existingURL.isPresent()) {
+            return existingURL.get();
         }
 
         urlValidateService.validateOriginalUrl(originURL);
 
-        long id = idGenerator.nextId();
+        // 커스텀 URL 등과 충돌 시 새 ID로 재생성 (ID가 같으면 인코딩 결과도 같으므로 ID부터 다시 발급)
+        long id;
         String shortenedURL;
-
         do {
+            id = idGenerator.nextId();
             shortenedURL = Base62.encode(id);
         } while (urlRepository.findByShortenedURL(shortenedURL).isPresent());
 
-        String fullShortenedURL = BE_BASE_URL + shortenedURL;
-        String qrCodeBase64 = generateQRCode(fullShortenedURL);
+        String qrCodeBase64 = generateQRCode(BE_BASE_URL + shortenedURL);
 
-        URL saved = urlRepository.save(new URL(id, null, originURL, shortenedURL, qrCodeBase64));
+        URL newUrl = new URL(id, user, originURL, shortenedURL, qrCodeBase64);
+        if (user != null) {
+            newUrl.setExpiresAt(urlRequest.getExpiresAt());
+            newUrl.setMaxClicks(urlRequest.getMaxClicks());
+        }
+
+        URL saved = urlRepository.save(newUrl);
         cacheURL(saved);
 
         return saved;
@@ -117,6 +103,10 @@ public class URLServiceImpl implements URLService {
     public URL makeCustomURL(User user, CustomURLRequest customURLRequest) {
         this.checkUser(user);
         urlValidateService.validateOriginalUrl(customURLRequest.getOriginURL());
+
+        if (RESERVED_SLUGS.contains(customURLRequest.getCustomURL().toLowerCase(Locale.ROOT))) {
+            throw new URLException("사용할 수 없는 커스텀 URL입니다.");
+        }
 
         Optional<URL> existingCustomURL = urlRepository.findByUserAndOriginURL(user,
             customURLRequest.getOriginURL());
@@ -130,12 +120,6 @@ public class URLServiceImpl implements URLService {
 
         if (shortenedURL.isPresent()) {
             throw new URLException("이미 존재하는 단축 URL입니다.");
-        }
-
-        int customURLLength = customURLRequest.getCustomURL().length();
-
-        if (customURLLength < 1 || customURLLength > 30) {
-            throw new URLException("커스텀 URL은 1자 이상 30자 이하여야 합니다. (현재: " + customURLLength + "자)");
         }
 
         String fullShortenedURL = BE_BASE_URL + customURLRequest.getCustomURL();
@@ -234,7 +218,7 @@ public class URLServiceImpl implements URLService {
         URL url = findUrlOrThrowException(urlId);
         this.validateUrlOwnership(user, url);
 
-        clickEventRepository.deleteAll(clickEventRepository.findAllByUrl(url));
+        clickEventRepository.deleteAllByUrl(url);
         urlRepository.deleteById(urlId);
 
         evictURLCache(url.getShortenedURL(), urlId);
@@ -247,18 +231,17 @@ public class URLServiceImpl implements URLService {
         URL url = findUrlOrThrowException(urlId);
         this.validateUrlOwnership(user, url);
 
-        List<ClickEvent> events = clickEventRepository.findAllByUrl(url);
+        // 클릭 이벤트를 모두 메모리에 올리지 않고 DB에서 집계
+        Map<String, Long> dailyClicks = clickEventRepository.countDailyClicks(url).stream()
+            .collect(Collectors.toMap(row -> (String) row[0], row -> (Long) row[1],
+                (a, b) -> a, LinkedHashMap::new));
 
-        Map<String, Long> dailyClicks = events.stream()
-            .collect(Collectors.groupingBy(
-                e -> e.getClickedAt().toLocalDate().toString(),
-                Collectors.counting()
-            ));
+        long totalClicks = dailyClicks.values().stream().mapToLong(Long::longValue).sum();
 
         return new URLDetailResponse(String.valueOf(url.getId()), url.getOriginURL(),
             (BE_BASE_URL + url.getShortenedURL()).replaceFirst("https?://", ""),
             url.getQrCode(), url.getCreatedAt(), url.getExpiresAt(),
-            url.getMaxClicks(), events.size(), dailyClicks);
+            url.getMaxClicks(), totalClicks, dailyClicks);
     }
 
     // ── Cache helpers ─────────────────────────────────────────────────────────

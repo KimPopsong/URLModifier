@@ -8,6 +8,7 @@ import bigmac.urlmodifierbackend.domain.user.dto.response.MyPageResponse;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import bigmac.urlmodifierbackend.domain.user.repository.UserRepository;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -30,18 +31,21 @@ public class MyPageServiceImpl implements MyPageService {
     public MyPageResponse getMyPage(User user) {
         this.checkUser(user);
 
+        // URL별 클릭 수를 쿼리 한 번으로 집계 (N+1 방지)
+        Map<Long, Long> clickCounts = clickEventRepository.countByUserGroupByUrl(user).stream()
+            .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
+
         MyPageResponse myPageResponse = new MyPageResponse();
         myPageResponse.setEmail(user.getEmail());
         myPageResponse.setNickname(user.getNickName());
         myPageResponse.setUrls(urlRepository.findByUser(user).stream()
-            .map(url -> buildURLResponse(url))
+            .map(url -> buildURLResponse(url, clickCounts.getOrDefault(url.getId(), 0L)))
             .collect(Collectors.toList()));
 
         return myPageResponse;
     }
 
-    private URLResponse buildURLResponse(URL url) {
-        long clickCount = clickEventRepository.countByUrl(url);
+    private URLResponse buildURLResponse(URL url, long clickCount) {
         boolean expired = isExpired(url, clickCount);
 
         return URLResponse.builder()

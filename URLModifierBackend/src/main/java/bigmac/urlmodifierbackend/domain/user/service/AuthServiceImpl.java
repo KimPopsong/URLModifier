@@ -138,7 +138,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     @Override
     public void logoutUser(String authorizationHeader) {
-        String accessToken = authorizationHeader.substring(7);
+        String accessToken = extractBearerToken(authorizationHeader);
 
         jwtUtil.addToBlackList(accessToken);
         jwtUtil.deleteRefreshToken(jwtUtil.getUserEmail(accessToken));
@@ -147,7 +147,7 @@ public class AuthServiceImpl implements AuthService {
     @Transactional
     @Override
     public void withdrawUser(String authorizationHeader, UserWithdrawRequest userWithdrawRequest) {
-        String accessToken = authorizationHeader.substring(7);
+        String accessToken = extractBearerToken(authorizationHeader);
         String email = jwtUtil.getUserEmail(accessToken);
 
         User user = userRepository.findByEmail(email)
@@ -158,14 +158,31 @@ public class AuthServiceImpl implements AuthService {
         }
 
         List<URL> urls = urlRepository.findByUser(user);
-        for (URL url : urls) {
-            clickEventRepository.deleteAll(clickEventRepository.findAllByUrl(url));
+        if (!urls.isEmpty()) {
+            clickEventRepository.deleteAllByUrlIn(urls);
+            urlRepository.deleteAll(urls);
         }
-        urlRepository.deleteAll(urls);
 
         jwtUtil.addToBlackList(accessToken);
         jwtUtil.deleteRefreshToken(email);
 
         userRepository.delete(user);
+    }
+
+    /**
+     * Authorization 헤더에서 Bearer 토큰을 추출하고 유효성을 검증
+     */
+    private String extractBearerToken(String authorizationHeader) {
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 인증 정보입니다.");
+        }
+
+        String token = authorizationHeader.substring(7);
+
+        if (!jwtUtil.validateToken(token)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "유효하지 않은 토큰입니다.");
+        }
+
+        return token;
     }
 }

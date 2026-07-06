@@ -7,6 +7,7 @@ import bigmac.urlmodifierbackend.domain.user.dto.request.UserWithdrawRequest;
 import bigmac.urlmodifierbackend.domain.user.dto.response.JwtResponse;
 import bigmac.urlmodifierbackend.domain.user.dto.response.UserLoginResponse;
 import bigmac.urlmodifierbackend.domain.user.service.AuthService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +32,8 @@ public class AuthController {
      * @return HttpStatus.OK
      */
     @PostMapping("/register")
-    public ResponseEntity<Void> registerUser(@RequestBody UserRegisterRequest userRegisterRequest) {
+    public ResponseEntity<Void> registerUser(
+        @Valid @RequestBody UserRegisterRequest userRegisterRequest) {
         authService.registerUser(userRegisterRequest);
 
         return ResponseEntity.status(HttpStatus.CREATED).build();
@@ -45,7 +47,7 @@ public class AuthController {
      */
     @PostMapping("/login")
     public ResponseEntity<UserLoginResponse> loginUser(
-        @RequestBody UserLoginRequest userLoginRequest) {
+        @Valid @RequestBody UserLoginRequest userLoginRequest) {
         return ResponseEntity.ok(authService.loginUser(userLoginRequest));
     }
 

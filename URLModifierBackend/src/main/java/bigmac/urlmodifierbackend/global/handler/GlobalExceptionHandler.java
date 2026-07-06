@@ -95,8 +95,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleValidationException(
         MethodArgumentNotValidException e) {
         log.warn("Validation error: {}", e.getMessage());
-        ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", 
-            "입력값이 올바르지 않습니다. 다시 확인해주세요.");
+        String message = e.getBindingResult().getFieldErrors().stream()
+            .findFirst()
+            .map(fieldError -> fieldError.getDefaultMessage())
+            .orElse("입력값이 올바르지 않습니다. 다시 확인해주세요.");
+        ErrorResponse response = new ErrorResponse("VALIDATION_ERROR", message);
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

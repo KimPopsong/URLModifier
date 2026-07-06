@@ -11,10 +11,12 @@ import java.util.Date;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.SecretKey;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+@Slf4j
 @Component
 @RequiredArgsConstructor
 public class JwtUtil {
@@ -101,7 +103,7 @@ public class JwtUtil {
      * @return email (subject 필드)
      */
     public String getUserEmail(String token) {
-        return Jwts.parser().setSigningKey(getSignInKey()).build().parseSignedClaims(token)
+        return Jwts.parser().verifyWith(getSignInKey()).build().parseSignedClaims(token)
             .getPayload().getSubject();
     }
 
@@ -114,19 +116,19 @@ public class JwtUtil {
     public boolean validateToken(String token) {
         try  // 토큰을 파싱해보고 문제가 없으면 유효하다고 판단
         {
-            Jwts.parser().setSigningKey(getSignInKey()).build().parseSignedClaims(token);
+            Jwts.parser().verifyWith(getSignInKey()).build().parseSignedClaims(token);
 
             return true;
         } catch (ExpiredJwtException e) {
-            System.out.println("Token Expired : " + e.getMessage());
+            log.debug("Token Expired : {}", e.getMessage());
         } catch (UnsupportedJwtException e) {
-            System.out.println("Unsupported Token : " + e.getMessage());
+            log.warn("Unsupported Token : {}", e.getMessage());
         } catch (MalformedJwtException e) {
-            System.out.println("Invalid Token Format: " + e.getMessage());
+            log.warn("Invalid Token Format: {}", e.getMessage());
         } catch (SecurityException e) {
-            System.out.println("Token Signature Error : " + e.getMessage());
+            log.warn("Token Signature Error : {}", e.getMessage());
         } catch (IllegalArgumentException e) {
-            System.out.println("Parameter Error : " + e.getMessage());
+            log.warn("Parameter Error : {}", e.getMessage());
         }
 
         return false;
@@ -139,7 +141,7 @@ public class JwtUtil {
      * @return
      */
     public long getRemainingTime(String token) {
-        Date expiration = Jwts.parser().setSigningKey(getSignInKey()).build()
+        Date expiration = Jwts.parser().verifyWith(getSignInKey()).build()
             .parseSignedClaims(token).getPayload().getExpiration();
 
         return expiration.getTime() - System.currentTimeMillis();

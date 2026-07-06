@@ -10,6 +10,7 @@ import bigmac.urlmodifierbackend.domain.url.model.URL;
 import bigmac.urlmodifierbackend.domain.url.service.URLService;
 import bigmac.urlmodifierbackend.domain.user.model.User;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
 import java.net.URI;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -39,7 +40,7 @@ public class URLController {
 
     @PostMapping("/short-urls")
     public ResponseEntity<URLResponse> makeURLShort(@AuthenticationPrincipal @Nullable User user,
-        @RequestBody URLRequest urlRequest) {
+        @Valid @RequestBody URLRequest urlRequest) {
         URL url = urlService.makeURLShort(user, urlRequest);
 
         String fullUrl = BE_BASE_URL + url.getShortenedURL();
@@ -59,7 +60,7 @@ public class URLController {
 
     @PostMapping("/short-urls/custom")
     public ResponseEntity<URLResponse> makeCustomURL(@AuthenticationPrincipal User user,
-        @RequestBody CustomURLRequest customURLRequest) {
+        @Valid @RequestBody CustomURLRequest customURLRequest) {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "커스텀 URL을 사용하려면 로그인이 필요합니다.");
         }
