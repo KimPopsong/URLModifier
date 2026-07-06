@@ -337,6 +337,10 @@ docker compose up -d --build fe-build nginx
 docker compose restart nginx
 ```
 
+> **주의**: `--build` 없이 `docker compose up -d`(또는 `down` 후 `up -d`)만 실행하면
+> 기존 이미지를 재사용하므로 **코드 변경이 반영되지 않는다**. fe-build 컨테이너가 재실행되며
+> 정적 파일의 수정 시각만 갱신되기 때문에 배포된 것처럼 보여도 내용물은 옛 빌드 결과물이다.
+
 ---
 
 ## 개발 시 주의사항
@@ -349,6 +353,8 @@ docker compose restart nginx
 - **단축 URL 충돌**: Snowflake 특성상 사실상 충돌 없음. 안전망으로 충돌 시 새 ID를 발급해 재생성하는 `do-while` 로직 존재 (커스텀 URL이 Base62 슬러그와 겹치는 경우 대비).
 - **커스텀 URL**: 예약어(`short-urls`, `urls`, `auth`, `me`, `swagger-ui` 등)와 겹치면 거부됨 — `URLServiceImpl.RESERVED_SLUGS` 참고. 새 컨트롤러 경로 추가 시 예약어 목록도 갱신할 것.
 - **프론트엔드**: 모든 UI가 `App.vue` 한 파일에 구현됨. 기능 분리 시 컴포넌트 분리 고려.
+- **통계 차트**: 패널 열림 애니메이션(0.5s)이 끝난 뒤 `<transition>`의 `@after-enter` 훅에서 생성. `setTimeout`으로 시점을 추측하면 폭 0인 캔버스에 그려지는 간헐적 버그가 재발하므로 훅 방식 유지할 것. 일자별 데이터는 `"YYYY-MM-DD"` 문자열 키로 직접 조회 (Date 변환 시 UTC/DST 어긋남 주의).
+- **단축 URL 표시**: BE 응답의 `shortenedUrl`/`shortenedURL`은 이미 도메인이 포함된 표시용 문자열 — FE에서 도메인을 다시 붙이지 말 것.
 - **Certbot 재발급 시**: `docker-compose.yaml`의 certbot `entrypoint`가 `certbot renew` 루프로 지정되어 있어, `certonly` 실행 시 `--entrypoint certbot` 오버라이드 필수.
 
 ---
@@ -411,9 +417,8 @@ docker compose logs -f app
 - 미니 PC에서 동작하는 CI/CD 파이프라인 구축
 - 예상 구성: 코드 Push → 빌드(`./gradlew bootJar`) → Docker 이미지 재빌드 → 컨테이너 재시작
 
-### 2. 마이페이지 URL 복사 알림
-- 마이페이지에서 URL 클릭 복사 시 "복사되었습니다" 알림창 표시
-- 현재 메인 페이지의 `copyToClipboard`에는 `isCopied` 상태로 복사 완료 표시가 있으나, 마이페이지 `clickUrl()`에는 없음
+### ~~2. 마이페이지 URL 복사 알림~~ ✅ 완료
+- 마이페이지에서 URL 클릭 복사 시 `copiedUrlId` 상태로 "✓ 복사됨" 배지 표시
 
 ### ~~3. 구글 검색 노출 설정~~ ✅ 완료
 - 구글 서치 콘솔 등록 및 sitemap 제출

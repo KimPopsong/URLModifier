@@ -175,6 +175,9 @@ docker compose up -d --build
 
 BE와 FE 모두 이미지 빌드부터 실행까지 자동으로 처리됩니다.
 
+> **주의**: 코드를 갱신(`git pull`)한 뒤에는 반드시 `--build`를 붙여야 합니다.
+> `docker compose up -d`만 실행하면 기존 이미지를 재사용해 변경 사항이 반영되지 않습니다.
+
 ### 3. 종료
 
 ```bash
