@@ -271,7 +271,7 @@
         </section>
 
         <!-- 우측: 소개 / 통계 패널 -->
-        <transition :name="transitionName">
+        <transition :name="transitionName" @after-enter="onPaneAfterEnter">
           <aside class="card side-card" v-if="activeTab === 'shorten'">
             <div class="card-body">
               <h2 class="side-title">URLcut을 더 잘 활용하는 법</h2>
@@ -324,7 +324,7 @@
                 <br />
                 <p class="detail-label">단축 URL</p>
                 <p class="detail-value">
-                  {{ backendBaseUrl }}/{{ selectedUrlDetail.shortenedURL }}
+                  {{ selectedUrlDetail.shortenedURL }}
                 </p>
                 <br />
                 <p class="detail-label">생성 일시</p>
@@ -445,7 +445,8 @@
               v-model="registerForm.password"
               type="password"
               class="text-input"
-              placeholder="비밀번호"
+              placeholder="비밀번호 (8자 이상)"
+              minlength="8"
               required
             />
 
@@ -528,7 +529,8 @@ Chart.register(zoomPlugin)
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 
-let isRefreshing = false
+// 동시에 여러 요청이 401을 받아도 refresh는 한 번만 수행하고 결과를 공유
+let refreshPromise = null
 
 function clearAuthStorage() {
   localStorage.removeItem('user')
@@ -557,38 +559,48 @@ axios.interceptors.response.use(
   (response) => response,
   async (error) => {
     const status = error?.response?.status
+    const originalConfig = error?.config
 
-    if (status === 401 && !error.config._isRetry && !error.config.url?.includes('/auth/login')) {
-      const storedRefresh = localStorage.getItem('refreshToken')
-
-      if (storedRefresh && !isRefreshing) {
-        isRefreshing = true
-        try {
-          const res = await axios.post(
-            `${API_BASE_URL}/auth/refresh`,
-            { refreshToken: storedRefresh },
-            { _isRetry: true },
-          )
-          localStorage.setItem('accessToken', res.data.accessToken)
-          localStorage.setItem('refreshToken', res.data.refreshToken)
-
-          error.config.headers['Authorization'] = `Bearer ${res.data.accessToken}`
-          error.config._isRetry = true
-          return axios(error.config)
-        } catch {
-          clearAuthStorage()
-          window.location.reload()
-          return
-        } finally {
-          isRefreshing = false
-        }
-      }
-
-      clearAuthStorage()
-      window.location.reload()
+    if (
+      status !== 401 ||
+      !originalConfig ||
+      originalConfig._isRetry ||
+      originalConfig.url?.includes('/auth/login')
+    ) {
+      return Promise.reject(error)
     }
 
-    return Promise.reject(error)
+    const storedRefresh = localStorage.getItem('refreshToken')
+
+    if (!storedRefresh) {
+      clearAuthStorage()
+      window.location.reload()
+      return Promise.reject(error)
+    }
+
+    try {
+      // 이미 진행 중인 refresh가 있으면 그 결과를 기다렸다가 같이 사용
+      if (!refreshPromise) {
+        refreshPromise = axios
+          .post(`${API_BASE_URL}/auth/refresh`, { refreshToken: storedRefresh }, { _isRetry: true })
+          .finally(() => {
+            refreshPromise = null
+          })
+      }
+      const res = await refreshPromise
+
+      localStorage.setItem('accessToken', res.data.accessToken)
+      localStorage.setItem('refreshToken', res.data.refreshToken)
+
+      originalConfig.headers = originalConfig.headers || {}
+      originalConfig.headers['Authorization'] = `Bearer ${res.data.accessToken}`
+      originalConfig._isRetry = true
+      return axios(originalConfig)
+    } catch {
+      clearAuthStorage()
+      window.location.reload()
+      return Promise.reject(error)
+    }
   },
 )
 
@@ -643,7 +655,6 @@ export default {
       selectedUrlDetail: null,
       urlDetailLoading: false,
       chartInstance: null,
-      chartCreateTimer: null,
       copiedUrlId: null,
 
       // 회원 탈퇴
@@ -739,8 +750,8 @@ export default {
         return errorData.message
       }
 
-      if (errorData?.error) {
-        // errorCode가 있는 경우 기본 메시지 사용
+      if (errorData?.errorCode) {
+        // errorCode만 있고 메시지가 없는 경우 기본 메시지 사용
         return defaultMessage
       }
 
@@ -920,12 +931,12 @@ export default {
         this.refreshToken = null
         clearAuthStorage()
         this.myPage = null
-        this.selectedUrlDetail = null
+        this.closeUrlDetail()
       }
     },
 
     openShorten() {
-      this.selectedUrlDetail = false
+      this.closeUrlDetail()
       this.activeTab = 'shorten'
     },
 
@@ -977,16 +988,9 @@ export default {
       this._reqVersion = (this._reqVersion || 0) + 1
       const myVersion = this._reqVersion
 
-      clearTimeout(this.chartCreateTimer)
-      this.chartCreateTimer = null
-
       const panelWasOpen = !!this.selectedUrlDetail
 
-      if (this.chartInstance) {
-        this.chartInstance.stop()
-        this.chartInstance.destroy()
-        this.chartInstance = null
-      }
+      this.destroyChart()
 
       if (panelWasOpen) {
         this.urlDetailLoading = true
@@ -1004,21 +1008,13 @@ export default {
         this.urlDetailLoading = false
 
         if (panelWasOpen) {
+          // 패널이 이미 열려 있으면 트랜지션이 없으므로 DOM 갱신 직후 바로 그림
           this.$nextTick(() => {
             if (myVersion !== this._reqVersion) return
-            if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
-              this.createChart()
-            }
+            this.createChart()
           })
-        } else {
-          this.chartCreateTimer = setTimeout(() => {
-            this.chartCreateTimer = null
-            if (myVersion !== this._reqVersion) return
-            if (this.selectedUrlDetail?.dailyClicks && Object.keys(this.selectedUrlDetail.dailyClicks).length > 0) {
-              this.createChart()
-            }
-          }, 600)
         }
+        // 패널이 새로 열리는 경우는 트랜지션 완료 시점에 onPaneAfterEnter가 그림
       } catch (err) {
         if (myVersion !== this._reqVersion) return
         this.urlDetailLoading = false
@@ -1027,15 +1023,25 @@ export default {
       }
     },
 
+    // 통계 패널 열림 애니메이션이 실제로 끝난 시점에 차트 생성
+    // (setTimeout으로 애니메이션 종료를 추측하면 저사양/백그라운드 탭에서 폭 0인 캔버스에 그려짐)
+    onPaneAfterEnter() {
+      if (this.activeTab !== 'mypage' || this.chartInstance) return
+      this.createChart()
+    },
+
     closeUrlDetail() {
-      clearTimeout(this.chartCreateTimer)
-      this.chartCreateTimer = null
+      this.destroyChart()
+      this.selectedUrlDetail = null
+      this.urlDetailLoading = false
+    },
+
+    destroyChart() {
       if (this.chartInstance) {
+        this.chartInstance.stop()
         this.chartInstance.destroy()
         this.chartInstance = null
       }
-      this.selectedUrlDetail = null
-      this.urlDetailLoading = false
     },
 
     async deleteUrl(url) {
@@ -1109,47 +1115,47 @@ export default {
     },
 
     createChart() {
-      if (!this.$refs.chartCanvas || !this.selectedUrlDetail?.dailyClicks) return
+      if (!this.$refs.chartCanvas) return
 
-      const dailyClicks = this.selectedUrlDetail.dailyClicks
-      const ONE_DAY = 86400000
+      const dailyClicks = this.selectedUrlDetail?.dailyClicks
+      if (!dailyClicks) return
 
-      // ISO 날짜 문자열 → timestamp 변환
-      const timeMap = new Map()
-      Object.entries(dailyClicks).forEach(([dateStr, count]) => {
-        timeMap.set(new Date(dateStr).getTime(), count)
-      })
+      // 'YYYY-MM-DD' 문자열 키를 그대로 사용 (Date 타임스탬프 변환 시
+      // UTC 해석·DST 때문에 키가 어긋나 카운트가 0으로 표시될 수 있음)
+      const dateKeys = Object.keys(dailyClicks).sort()
+      if (dateKeys.length === 0) return
 
-      if (timeMap.size === 0) return
+      const parseDate = (s) => {
+        const [y, m, d] = s.split('-').map(Number)
+        return new Date(y, m - 1, d)  // 로컬 자정 기준
+      }
+      const toKey = (d) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
+          d.getDate(),
+        ).padStart(2, '0')}`
 
-      let minTime = Math.min(...timeMap.keys())
-      let maxTime = Math.max(...timeMap.keys())
+      const startDate = parseDate(dateKeys[0])
+      const endDate = parseDate(dateKeys[dateKeys.length - 1])
 
       // 단일 날짜인 경우 앞뒤 하루씩 확장
-      if (minTime === maxTime) {
-        minTime -= ONE_DAY
-        maxTime += ONE_DAY
+      if (dateKeys.length === 1) {
+        startDate.setDate(startDate.getDate() - 1)
+        endDate.setDate(endDate.getDate() + 1)
       }
 
       const labels = []
       const data = []
 
-      const currentDate = new Date(minTime)
-      const endDate = new Date(maxTime)
-
+      const currentDate = new Date(startDate)
       while (currentDate <= endDate) {
         labels.push(
           currentDate.toLocaleString('ko-KR', { month: 'short', day: 'numeric' }),
         )
-        data.push(timeMap.get(currentDate.getTime()) || 0)
+        data.push(dailyClicks[toKey(currentDate)] || 0)
         currentDate.setDate(currentDate.getDate() + 1)
       }
 
-      if (this.chartInstance) {
-        this.chartInstance.stop()
-        this.chartInstance.destroy()
-        this.chartInstance = null
-      }
+      this.destroyChart()
 
       const ctx = this.$refs.chartCanvas.getContext('2d')
       this.chartInstance = new Chart(ctx, {
@@ -1252,10 +1258,7 @@ export default {
   },
   beforeUnmount() {
     // 컴포넌트가 언마운트될 때 차트 인스턴스 제거
-    if (this.chartInstance) {
-      this.chartInstance.destroy()
-      this.chartInstance = null
-    }
+    this.destroyChart()
   },
 }
 </script>
