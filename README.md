@@ -157,7 +157,7 @@ cp .env.example .env
 | `DB_USERNAME` | PostgreSQL 사용자 이름 | `urluser` |
 | `DB_PASSWORD` | PostgreSQL 비밀번호 | `changeme` |
 | `REDIS_PASSWORD` | Redis 비밀번호 (없으면 빈칸) | |
-| `JWT_SECRET` | JWT 서명 키 (Base64 인코딩, 32바이트 이상 권장) | |
+| `JWT_SECRET` | JWT 서명 키 (Base64 인코딩, 32바이트 이상 권장) — **필수, 미설정 시 compose 기동 거부** | |
 
 > **JWT_SECRET 생성 예시**
 > ```bash
@@ -276,7 +276,7 @@ Swagger UI: `http://localhost:8080/swagger-ui.html`
 
 **POST /auth/register**
 ```json
-// Request
+// Request (password는 8자 이상, email 형식 검증됨)
 { "email": "user@example.com", "nickName": "홍길동", "password": "password123" }
 // Response: 201 Created
 ```
@@ -362,7 +362,7 @@ Authorization: Bearer {accessToken}
 // Request
 {
   "originURL": "https://example.com/very/long/url",
-  "customURL": "my-link",              // 1~30자
+  "customURL": "my-link",              // 1~30자, 영문/숫자/'-'/'_'만 허용, 예약어(auth, urls, me 등) 불가
   "expiresAt": "2025-12-31T23:59:59", // 선택
   "maxClicks": 100                     // 선택
 }
@@ -394,14 +394,8 @@ Authorization: Bearer {accessToken}
   "createdAt": "2025-01-01T00:00:00",
   "expiresAt": "2025-12-31T23:59:59",
   "maxClicks": 100,
-  "clickEventList": [
-    {
-      "clickedAt": "2025-06-01T12:00:00",
-      "referrer": "https://google.com",
-      "userAgent": "Mozilla/5.0 ...",
-      "ipAddress": "1.2.3.4"
-    }
-  ]
+  "totalClicks": 42,
+  "dailyClicks": { "2025-06-01": 30, "2025-06-02": 12 }
 }
 ```
 

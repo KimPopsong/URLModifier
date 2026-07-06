@@ -20,7 +20,7 @@ URLModifier는 URL 단축 서비스로, 긴 URL을 짧은 URL로 변환하고 QR
 - **ORM**: Spring Data JPA
 - **데이터베이스**: PostgreSQL 14
 - **캐시**: Redis 7
-- **메시지 큐**: RabbitMQ (Spring AMQP) — 현재 docker-compose에 미포함, 로컬 실행 시 별도 설정 필요
+- **입력 검증**: Bean Validation (spring-boot-starter-validation) — 컨트롤러 `@Valid` + DTO 애너테이션
 - **인증**: JWT (jjwt 0.12.6) — Access Token(1시간) + Refresh Token(7일)
 - **API 문서**: SpringDoc OpenAPI 2.8.9 (Swagger UI: `/swagger-ui.html`)
 - **빌드 도구**: Gradle (`bootJar` → `app.jar`)
@@ -78,7 +78,7 @@ URLModifier/
 │       │       ├── repository/UserRepository.java
 │       │       └── service/         # AuthService(인터페이스), AuthServiceImpl, MyPageService, MyPageServiceImpl
 │       └── global/
-│           ├── config/              # SecurityConfig, RedisConfig, RabbitConfig, IdGeneratorConfig, WebConfig
+│           ├── config/              # SecurityConfig, RedisConfig, IdGeneratorConfig, WebConfig
 │           ├── dto/ErrorResponse.java
 │           ├── handler/GlobalExceptionHandler.java
 │           └── util/                # JwtUtil, JwtAuthenticationFilter, Base62, QRCodeUtil, SnowflakeIdGenerator
@@ -149,7 +149,7 @@ DB의 `shortened_url` 컬럼에는 slug만 저장 (예: `abc123`). 응답/표시
 
 #### POST `/auth/register` — 회원가입
 ```json
-// Request
+// Request (password는 8자 이상, email 형식 검증됨)
 { "email": "user@example.com", "nickName": "사용자명", "password": "password123" }
 // Response: 201 CREATED
 ```
@@ -221,7 +221,7 @@ DB의 `shortened_url` 컬럼에는 slug만 저장 (예: `abc123`). 응답/표시
 // Request
 {
   "originURL": "https://example.com/very/long/url",
-  "customURL": "my-custom-link",         // 1~30자
+  "customURL": "my-custom-link",         // 1~30자, 영문/숫자/'-'/'_'만 허용, 예약어(auth, urls, me 등) 불가
   "expiresAt": "2026-12-31T23:59:59",   // 선택
   "maxClicks": 100                        // 선택
 }
@@ -249,9 +249,8 @@ DB의 `shortened_url` 컬럼에는 slug만 저장 (예: `abc123`). 응답/표시
   "createdAt": "2024-01-01T00:00:00",
   "expiresAt": "2026-12-31T23:59:59",
   "maxClicks": 100,
-  "clickEventList": [
-    { "id": 987654321, "referrer": "...", "userAgent": "...", "ipAddress": "...", "clickedAt": "..." }
-  ]
+  "totalClicks": 42,
+  "dailyClicks": { "2026-07-01": 30, "2026-07-02": 12 }   // DB에서 일자별 GROUP BY 집계
 }
 ```
 
@@ -264,11 +263,11 @@ DB의 `shortened_url` 컬럼에는 slug만 저장 (예: `abc123`). 응답/표시
 ## 핵심 비즈니스 로직
 
 ### URL 단축 흐름 (`URLServiceImpl.makeURLShort`)
-1. 로그인 사용자: 동일 `originURL`이 이미 있으면 기존 URL 반환
-2. 비회원: 익명(user=null) 중 동일 `originURL` 존재 시 기존 반환
-3. `SnowflakeIdGenerator.nextId()` → `Base62.encode(id)` → 충돌 시 재시도(do-while)
+1. 로그인 사용자: 동일 `originURL`이 이미 있으면 기존 URL 반환 / 비회원: 익명(user=null) 중 동일 `originURL` 존재 시 기존 반환
+2. `URLValidateServiceImpl.validateOriginalUrl`: http/https 형식 확인, 자체 도메인(`BE_BASE_URL`의 호스트) 재단축 차단, 외부 단축 서비스 차단 — 모두 URI 파싱 후 호스트 기준 비교
+3. `SnowflakeIdGenerator.nextId()` → `Base62.encode(id)` → 슬러그 충돌 시 **새 ID를 발급**해 재생성 (같은 ID로는 인코딩 결과가 같으므로)
 4. `BE_BASE_URL + shortenedURL` 기준으로 QR 코드 생성 (ZXing, 200×200 PNG → Base64)
-5. `expiresAt`, `maxClicks` 선택적으로 저장
+5. `expiresAt`, `maxClicks` 선택적으로 저장 (회원 전용)
 
 ### 링크 만료 확인 (`redirectToOriginal`)
 ```
@@ -281,7 +280,7 @@ maxClicks != null && clickCount >= maxClicks → URLExpiredException
 - **Access Token**: 1시간, 로그아웃 시 Redis `blacklist:{token}` 키에 남은 유효시간 동안 저장
 - **Refresh Token**: 7일, Redis `refresh:{email}` 키로 저장 (재발급 시 기존 삭제 후 새로 저장)
 - **`JwtAuthenticationFilter`**: 매 요청마다 블랙리스트 확인 + 유효성 검사 → `SecurityContext` 설정
-- **`SecurityConfig`**: `anyRequest().permitAll()` — 엔드포인트 보호는 서비스 레이어에서 수동 처리
+- **`SecurityConfig`**: `/urls/**`, `/me`, `/short-urls/custom`, `/auth/logout`, `/auth/withdraw`는 `authenticated()` 강제 (인증 실패 시 401 JSON 반환). 나머지는 permitAll. 서비스 레이어의 `checkUser()`는 이중 방어로 유지
 
 ---
 
@@ -294,7 +293,7 @@ maxClicks != null && clickCount >= maxClicks → URLExpiredException
 | `DB_PASSWORD` | `test` | DB 비밀번호 |
 | `REDIS_HOST` | `localhost` | Redis 호스트 |
 | `REDIS_PASSWORD` | (없음) | Redis 비밀번호 |
-| `JWT_SECRET` | (개발 기본값) | JWT 서명용 시크릿 키 (Base64 인코딩) |
+| `JWT_SECRET` | (로컬 실행 시 개발 기본값) | JWT 서명용 시크릿 키 (Base64 인코딩). **docker-compose 배포 시 `.env`에 필수** — 미설정 시 기동 거부 |
 | `BE_URL` | `http://localhost:8080/` | 백엔드 Base URL (단축 URL 접두어, QR 코드 기준) |
 | `FE_URL` | `http://localhost:5173/` | 프론트엔드 Base URL (만료 리디렉션 대상) |
 | `PUBLIC_URL` | — | 운영 배포 시 `https://urlcut.kr` 으로 설정 |
@@ -344,10 +343,11 @@ docker compose restart nginx
 
 - **ID 생성**: 모든 PK는 `SnowflakeIdGenerator`로 직접 생성. JPA `@GeneratedValue` 미사용.
 - **트랜잭션**: 서비스 클래스 기본 `@Transactional(readOnly = true)`, 쓰기 메서드에만 `@Transactional` 추가.
-- **보안 처리**: Spring Security는 전체 허용, 인증 강제는 서비스 레이어의 `checkUser()` 메서드로 수동 처리.
+- **보안 처리**: 보호가 필요한 엔드포인트는 `SecurityConfig`에서 `authenticated()`로 선언. 서비스 레이어의 `checkUser()`는 이중 방어. 새 보호 엔드포인트 추가 시 `SecurityConfig`에도 등록할 것.
+- **입력 검증**: 컨트롤러 `@RequestBody`에 `@Valid` 필수. 검증 규칙은 DTO 애너테이션으로 선언 (오류 메시지가 그대로 응답에 노출됨).
 - **QR 코드**: `BE_BASE_URL + shortenedURL` 기준 생성 — 배포 환경 URL 변경 시 기존 QR 무효화 주의.
-- **단축 URL 충돌**: Snowflake 특성상 사실상 충돌 없음. 안전망으로 `do-while` 재시도 로직 존재.
-- **RabbitMQ**: `build.gradle`에 의존성은 있지만 `docker-compose.yaml`에 서비스 미포함. 로컬 실행 시 관련 설정 확인 필요.
+- **단축 URL 충돌**: Snowflake 특성상 사실상 충돌 없음. 안전망으로 충돌 시 새 ID를 발급해 재생성하는 `do-while` 로직 존재 (커스텀 URL이 Base62 슬러그와 겹치는 경우 대비).
+- **커스텀 URL**: 예약어(`short-urls`, `urls`, `auth`, `me`, `swagger-ui` 등)와 겹치면 거부됨 — `URLServiceImpl.RESERVED_SLUGS` 참고. 새 컨트롤러 경로 추가 시 예약어 목록도 갱신할 것.
 - **프론트엔드**: 모든 UI가 `App.vue` 한 파일에 구현됨. 기능 분리 시 컴포넌트 분리 고려.
 - **Certbot 재발급 시**: `docker-compose.yaml`의 certbot `entrypoint`가 `certbot renew` 루프로 지정되어 있어, `certonly` 실행 시 `--entrypoint certbot` 오버라이드 필수.
 
@@ -405,7 +405,7 @@ docker compose logs -f app
 - **Developer API**: API 키 발급으로 외부 애플리케이션에서 URL 단축·관리 가능하도록 REST API 제공
 - **CAPTCHA**: 비회원 요청에 봇 방지 적용 (로그인 유저는 제외)
 - **최근 URL 랭킹**: 클릭 수 기준 인기 단축 URL 랭킹 제공
-- **테스트 코드**: 서비스·컨트롤러 레이어 단위/통합 테스트 작성
+- **테스트 코드**: `URLServiceImpl`·`URLValidateServiceImpl` 단위 테스트 존재 (`src/test/java/.../domain/url/service/`). 컨트롤러·통합 테스트는 미작성
 
 ### 1. CI/CD 구축
 - 미니 PC에서 동작하는 CI/CD 파이프라인 구축
