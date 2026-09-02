@@ -19,6 +19,7 @@ import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
 import java.util.Base64;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -29,8 +30,10 @@ import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
@@ -51,6 +54,9 @@ public class URLServiceImpl implements URLService {
     // 애플리케이션 경로와 겹쳐 리다이렉트가 불가능해지는 슬러그
     private static final Set<String> RESERVED_SLUGS = Set.of("short-urls", "urls", "auth", "me",
         "swagger-ui", "v3", "api-docs", "swagger-resources", "webjars", "actuator", "error");
+    // 클릭 수 한도 검사+증가를 원자적으로 수행하는 Lua 스크립트 (경쟁 조건 방지)
+    private static final RedisScript<Long> CHECK_AND_INCREMENT_CLICKS_SCRIPT = RedisScript.of(
+        new ClassPathResource("scripts/check_and_increment_clicks.lua"), Long.class);
     private final URLValidateServiceImpl urlValidateService;
     private final URLRepository urlRepository;
     private final ClickEventRepository clickEventRepository;
@@ -169,8 +175,7 @@ public class URLServiceImpl implements URLService {
 
             if (cached.getMaxClicks() != null) {
                 URL urlRef = urlRepository.getReferenceById(cached.getId());
-                long clickCount = getOrInitClickCount(cached.getId(), urlRef);
-                if (clickCount >= cached.getMaxClicks()) {
+                if (!tryConsumeClick(cached.getId(), cached.getMaxClicks(), urlRef)) {
                     throw new URLExpiredException("클릭 수 초과");
                 }
             }
@@ -188,8 +193,7 @@ public class URLServiceImpl implements URLService {
             }
 
             if (url.getMaxClicks() != null) {
-                long clickCount = getOrInitClickCount(url.getId(), url);
-                if (clickCount >= url.getMaxClicks()) {
+                if (!tryConsumeClick(url.getId(), url.getMaxClicks(), url)) {
                     throw new URLExpiredException("클릭 수 초과");
                 }
             }
@@ -199,15 +203,11 @@ public class URLServiceImpl implements URLService {
         }
 
         // 클릭 이벤트 저장: getReferenceById로 SELECT 없이 FK 참조
+        // (maxClicks 카운터는 위 tryConsumeClick에서 이미 원자적으로 증가됨)
         URL urlRef = urlRepository.getReferenceById(urlId);
         clickEventRepository.save(
             ClickEvent.builder().url(urlRef).referrer(referrer).ipAddress(ipAddress)
                 .userAgent(userAgent).build());
-
-        // maxClicks 있는 URL만 Redis 카운터 증가
-        if (urlForReturn.getMaxClicks() != null) {
-            stringRedisTemplate.opsForValue().increment(URL_CLICK_COUNT + urlId);
-        }
 
         return urlForReturn;
     }
@@ -313,18 +313,30 @@ public class URLServiceImpl implements URLService {
     }
 
     /**
-     * Redis 클릭 카운터 조회. 키 미존재 시 DB에서 초기값 설정.
+     * maxClicks 한도를 원자적으로 검사하고, 한도 내이면 Redis 카운터를 증가시킨다.
+     * 검사와 증가 사이에 다른 요청이 끼어들 수 없어 동시 요청으로 인한 한도 초과를 방지한다.
+     *
+     * @return true = 허용됨(카운터 증가 완료), false = 한도 초과(카운터 변화 없음)
      */
-    private long getOrInitClickCount(Long urlId, URL urlRef) {
+    private boolean tryConsumeClick(Long urlId, Integer maxClicks, URL urlRef) {
         String countKey = URL_CLICK_COUNT + urlId;
-        String val = stringRedisTemplate.opsForValue().get(countKey);
-        if (val != null) {
-            return Long.parseLong(val);
+        Long result = executeClickScript(countKey, maxClicks);
+
+        if (result != null && result == -2L) {
+            // 카운터가 아직 없음: DB에서 초기값을 읽어 원자적으로 세팅(setIfAbsent) 후 재시도.
+            // 동시에 여러 요청이 초기화를 시도해도 setIfAbsent로 하나만 반영되므로 안전하다.
+            long dbCount = clickEventRepository.countByUrl(urlRef);
+            stringRedisTemplate.opsForValue()
+                .setIfAbsent(countKey, String.valueOf(dbCount), URL_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
+            result = executeClickScript(countKey, maxClicks);
         }
-        // 캐시 미스: DB에서 현재 클릭 수를 읽어 초기화 (동시 요청 대비 setIfAbsent 사용)
-        long dbCount = clickEventRepository.countByUrl(urlRef);
-        stringRedisTemplate.opsForValue().setIfAbsent(countKey, String.valueOf(dbCount), URL_CACHE_TTL_SECONDS, TimeUnit.SECONDS);
-        return dbCount;
+
+        return result != null && result != -1L && result != -2L;
+    }
+
+    private Long executeClickScript(String countKey, Integer maxClicks) {
+        return stringRedisTemplate.execute(CHECK_AND_INCREMENT_CLICKS_SCRIPT, List.of(countKey),
+            String.valueOf(maxClicks));
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

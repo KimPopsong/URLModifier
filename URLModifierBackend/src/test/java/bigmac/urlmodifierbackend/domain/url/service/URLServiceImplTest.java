@@ -3,11 +3,13 @@ package bigmac.urlmodifierbackend.domain.url.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import bigmac.urlmodifierbackend.domain.url.dto.URLCacheDto;
 import bigmac.urlmodifierbackend.domain.url.dto.request.URLRequest;
 import bigmac.urlmodifierbackend.domain.url.exception.URLException;
 import bigmac.urlmodifierbackend.domain.url.exception.URLExpiredException;
@@ -20,6 +22,7 @@ import bigmac.urlmodifierbackend.global.util.Base62;
 import bigmac.urlmodifierbackend.global.util.SnowflakeIdGenerator;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,6 +32,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
+import org.springframework.data.redis.core.script.RedisScript;
 import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
@@ -105,8 +109,8 @@ class URLServiceImplTest {
     void redirectToOriginal_throwsWhenMaxClicksReached() {
         when(redisTemplate.opsForValue()).thenReturn(valueOperations);
         when(valueOperations.get(anyString())).thenReturn(null);  // 캐시 미스
-        when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
-        when(stringValueOperations.get("url:clicks:1")).thenReturn("3");
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any()))
+            .thenReturn(-1L);  // Lua 스크립트: 한도 초과
 
         URL url = new URL(1L, null, "https://example.com", "abc", "qr");
         url.setMaxClicks(3);
@@ -114,6 +118,53 @@ class URLServiceImplTest {
 
         assertThatThrownBy(() -> urlService.redirectToOriginal(null, null, null, "abc"))
             .isInstanceOf(URLExpiredException.class);
+    }
+
+    @Test
+    @DisplayName("한도 내 클릭은 원자적 검사+증가 스크립트 한 번으로 허용된다")
+    void redirectToOriginal_atomicClickCheck_allowsWithinLimit() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        URLCacheDto cached = new URLCacheDto(1L, "https://example.com", "abc", null, 5);
+        when(valueOperations.get("url:slug:abc")).thenReturn(cached);
+
+        URL urlRef = new URL(1L, null, "https://example.com", "abc", "qr");
+        urlRef.setMaxClicks(5);
+        when(urlRepository.getReferenceById(1L)).thenReturn(urlRef);
+
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any()))
+            .thenReturn(3L);  // Lua 스크립트: 허용 + 카운터 3으로 증가
+
+        URL result = urlService.redirectToOriginal("ref", "agent", "127.0.0.1", "abc");
+
+        assertThat(result.getOriginURL()).isEqualTo("https://example.com");
+        verify(clickEventRepository).save(any());
+        // 검사와 증가가 하나의 스크립트 호출로 끝나야 하며(경쟁 조건 없음),
+        // 별도의 opsForValue().increment() 호출은 더 이상 존재하지 않는다.
+        verify(stringRedisTemplate, times(1)).execute(any(RedisScript.class), anyList(), any());
+    }
+
+    @Test
+    @DisplayName("클릭 카운터가 아직 없으면 DB에서 초기화한 뒤 원자적 검사를 재시도한다")
+    void redirectToOriginal_coldStartClickCounter_initializesThenRetries() {
+        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
+        URLCacheDto cached = new URLCacheDto(1L, "https://example.com", "abc", null, 5);
+        when(valueOperations.get("url:slug:abc")).thenReturn(cached);
+
+        URL urlRef = new URL(1L, null, "https://example.com", "abc", "qr");
+        urlRef.setMaxClicks(5);
+        when(urlRepository.getReferenceById(1L)).thenReturn(urlRef);
+        when(clickEventRepository.countByUrl(urlRef)).thenReturn(2L);
+
+        when(stringRedisTemplate.opsForValue()).thenReturn(stringValueOperations);
+        // 1차 호출: 카운터 없음(-2) → DB 초기화 후 재시도 → 2차 호출: 허용(3)
+        when(stringRedisTemplate.execute(any(RedisScript.class), anyList(), any()))
+            .thenReturn(-2L, 3L);
+
+        URL result = urlService.redirectToOriginal("ref", "agent", "127.0.0.1", "abc");
+
+        assertThat(result.getOriginURL()).isEqualTo("https://example.com");
+        verify(stringValueOperations).setIfAbsent("url:clicks:1", "2", 3600L, TimeUnit.SECONDS);
+        verify(stringRedisTemplate, times(2)).execute(any(RedisScript.class), anyList(), any());
     }
 
     @Test
