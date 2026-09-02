@@ -21,11 +21,11 @@ import org.hibernate.annotations.CreationTimestamp;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+// origin_url은 TEXT 컬럼이라 B-tree 인덱스를 걸면 매우 긴 URL에서
+// "index row size exceeds maximum" 오류로 저장이 실패할 수 있어 제거했다.
+// origin_url 기반 조회 최적화가 필요하면 md5(origin_url) 함수 인덱스를 별도 마이그레이션으로 추가한다.
 @Table(name = "url", indexes = {
-    @Index(name = "idx_url_origin_url", columnList = "origin_url"),
-    @Index(name = "idx_url_user_origin", columnList = "users,origin_url"),
-    @Index(name = "idx_url_user", columnList = "users"),
-    @Index(name = "idx_url_origin_user_null", columnList = "origin_url", unique = false)
+    @Index(name = "idx_url_user", columnList = "users")
 })
 public class URL {
 

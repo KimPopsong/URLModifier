@@ -35,6 +35,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.server.ResponseStatusException;
 
 @Slf4j
@@ -93,7 +95,7 @@ public class URLServiceImpl implements URLService {
         }
 
         URL saved = urlRepository.save(newUrl);
-        cacheURL(saved);
+        cacheURLAfterCommit(saved);
 
         return saved;
     }
@@ -131,7 +133,7 @@ public class URLServiceImpl implements URLService {
         newUrl.setMaxClicks(customURLRequest.getMaxClicks());
 
         URL saved = urlRepository.save(newUrl);
-        cacheURL(saved);
+        cacheURLAfterCommit(saved);
 
         return saved;
     }
@@ -221,7 +223,7 @@ public class URLServiceImpl implements URLService {
         clickEventRepository.deleteAllByUrl(url);
         urlRepository.deleteById(urlId);
 
-        evictURLCache(url.getShortenedURL(), urlId);
+        evictURLCacheAfterCommit(url.getShortenedURL(), urlId);
     }
 
     @Override
@@ -260,6 +262,39 @@ public class URLServiceImpl implements URLService {
         redisTemplate.opsForValue()
             .set(URL_SLUG_CACHE + url.getShortenedURL(), dto, URL_CACHE_TTL_SECONDS,
                 TimeUnit.SECONDS);
+    }
+
+    /**
+     * 트랜잭션 커밋 이후에 캐시를 적재한다. 커밋이 롤백되면 캐시에 유령 항목이 남는 문제를 방지.
+     * (트랜잭션이 없으면 즉시 적재)
+     */
+    private void cacheURLAfterCommit(URL url) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    cacheURL(url);
+                }
+            });
+        } else {
+            cacheURL(url);
+        }
+    }
+
+    /**
+     * 트랜잭션 커밋 이후에 캐시를 무효화한다. 삭제가 롤백되면 캐시가 먼저 지워지는 창(window)을 방지.
+     */
+    private void evictURLCacheAfterCommit(String slug, Long urlId) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    evictURLCache(slug, urlId);
+                }
+            });
+        } else {
+            evictURLCache(slug, urlId);
+        }
     }
 
     private void evictURLCache(String slug, Long urlId) {
