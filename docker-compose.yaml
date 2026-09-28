@@ -15,11 +15,14 @@ services:
   # ── Nginx: 유일하게 외부 포트 오픈 (80 + 443) ──────────────────
   nginx:
     image: nginx:1.27-alpine
+    entrypoint: ["/bin/sh", "/usr/local/bin/start-nginx.sh"]
+    command: ["nginx", "-g", "daemon off;"]
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - ./nginx/conf.d:/etc/nginx/conf.d:ro     # nginx 설정 (호스트 직접 관리)
+      - ./nginx/start-nginx.sh:/usr/local/bin/start-nginx.sh:ro
       - ./certbot/conf:/etc/letsencrypt:ro       # Let's Encrypt 인증서
       - ./certbot/www:/var/www/certbot           # ACME HTTP-01 challenge
       - fe_static:/usr/share/nginx/html:ro       # FE 빌드 결과물
